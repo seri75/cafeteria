@@ -151,13 +151,13 @@ public interface OrderRepository extends PagingAndSortingRepository<Order, Long>
 - 적용 후 REST API 의 테스트
 ```
 # order 서비스의 주문처리
-http localhost:8081/orders item="통닭"
+http localhost:8081/orders phoneNumber="01012345678",productName="coffee",qty=2,amt=2000
 
 # drink 서비스의 접수처리
-http localhost:8083/주문처리s orderId=1
+http patch localhost:8083/drinks/1 status="Receipted"
 
 # customercenter 서비스의 상태확인
-http localhost:8081/orders/1
+http localhost:8084/mypages/1
 
 ```
 
@@ -215,16 +215,16 @@ public interface PaymentService {
 # 결제 (pay) 서비스를 잠시 내려놓음 (ctrl+c)
 
 #주문처리
-http localhost:8081/orders item=통닭 storeId=1   #Fail
-http localhost:8081/orders item=피자 storeId=2   #Fail
+http localhost:8081/orders phoneNumber="01012345678",productName="coffee",qty=2,amt=2000   #Fail
+http localhost:8081/orders phoneNumber="01056781234",productName="cappuccino",qty=1,amt=1500   #Fail
 
 #결제서비스 재기동
 cd 결제
 mvn spring-boot:run
 
 #주문처리
-http localhost:8081/orders item=통닭 storeId=1   #Success
-http localhost:8081/orders item=피자 storeId=2   #Success
+http localhost:8081/orders phoneNumber="01012345678",productName="coffee",qty=2,amt=2000   #Success
+http localhost:8081/orders phoneNumber="01056781234",productName="cappuccino",qty=1,amt=1500   #Success
 ```
 
 - 또한 과도한 요청시에 서비스 장애가 도미노 처럼 벌어질 수 있다. (서킷브레이커, 폴백 처리는 운영단계에서 설명한다.)
@@ -322,15 +322,15 @@ public class KakaoServiceImpl implements KakaoService {
 # 음료 서비스 (drink) 를 잠시 내려놓음 (ctrl+c)
 
 #주문처리
-http localhost:8081/orders item=통닭 storeId=1   #Success
-http localhost:8081/orders item=피자 storeId=2   #Success
+http localhost:8081/orders phoneNumber="01012345678",productName="coffee",qty=2,amt=2000   #Success
+http localhost:8081/orders phoneNumber="01056781234",productName="cappuccino",qty=1,amt=1500   #Success
 
-#상점 서비스 기동
-cd 상점
+#음료 서비스 기동
+cd drink
 mvn spring-boot:run
 
 #음료등록 확인
-http localhost:8080/drinks    # 주문정보에 조회됨 확인
+http localhost:8083/drinks/1    # 주문정보에 조회됨 확인
 ```
 
 
@@ -382,7 +382,7 @@ hystrix:
 - 60초 동안 실시
 
 ```
-$ siege -c100 -t60S -r10 --content-type "application/json" 'http://localhost:8081/orders POST {"item": "chicken"}'
+$ siege -c100 -t60S -r10 --content-type "application/json" 'localhost:8081/orders POST {"phoneNumber": "01012345678","productName": "coffee","qty": 2,"amt": 1000}'
 
 ** SIEGE 4.0.5
 ** Preparing 100 concurrent users for battle.
@@ -527,7 +527,8 @@ kubectl autoscale deploy pay --min=1 --max=10 --cpu-percent=15
 ```
 - CB 에서 했던 방식대로 워크로드를 2분 동안 걸어준다.
 ```
-siege -c100 -t120S -r10 --content-type "application/json" 'http://localhost:8081/orders POST {"item": "chicken"}'
+siege -c100 -t120S -r10 --content-type "application/json" 'localhost:8081/orders POST {"phoneNumber": "01012345678","productName": "coffee","qty": 2,"amt": 1000}'
+
 ```
 - 오토스케일이 어떻게 되고 있는지 모니터링을 걸어둔다:
 ```
@@ -560,7 +561,7 @@ Concurrency:		       96.02
 
 - seige 로 배포작업 직전에 워크로드를 모니터링 함.
 ```
-siege -c100 -t120S -r10 --content-type "application/json" 'http://localhost:8081/orders POST {"item": "chicken"}'
+siege -c100 -t120S -r10 --content-type "application/json" 'localhost:8081/orders POST {"phoneNumber": "01012345678","productName": "coffee","qty": 2,"amt": 1000}'
 
 ** SIEGE 4.0.5
 ** Preparing 100 concurrent users for battle.
