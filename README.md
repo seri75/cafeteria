@@ -324,6 +324,8 @@ public class KakaoServiceImpl implements KakaoService {
 음료 시스템은 주문/결제와 완전히 분리되어있으며, 이벤트 수신에 따라 처리되기 때문에, 음료시스템이 유지보수로 인해 잠시 내려간 상태라도 주문을 받는데 문제가 없다:
 ```
 # 음료 서비스 (drink) 를 잠시 내려놓음 (ctrl+c)
+$ kubectl delete deploy drink
+deployment.apps "drink" deleted
 
 #주문처리
 http localhost:8081/orders phoneNumber="01012345678",productName="coffee",qty=2,amt=2000   #Success
