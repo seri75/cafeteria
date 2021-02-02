@@ -334,6 +334,8 @@ http localhost:8081/orders phoneNumber="01056781234",productName="cappuccino",qt
 #음료 서비스 기동
 cd drink
 mvn spring-boot:run
+kubectl apply -f deployment.yml
+deployment.apps/drink created
 
 #음료등록 확인
 http localhost:8083/drinks/1    # 주문정보에 조회됨 확인
