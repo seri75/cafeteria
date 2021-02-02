@@ -213,6 +213,8 @@ public interface PaymentService {
 
 ```
 # 결제 (pay) 서비스를 잠시 내려놓음 (ctrl+c)
+$ kubectl delete deploy payment
+deployment.apps "payment" deleted
 
 #주문처리
 http localhost:8081/orders phoneNumber="01012345678",productName="coffee",qty=2,amt=2000   #Fail
