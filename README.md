@@ -223,6 +223,8 @@ http localhost:8081/orders phoneNumber="01056781234",productName="cappuccino",qt
 #결제서비스 재기동
 cd 결제
 mvn spring-boot:run
+$ kubectl apply -f deployment.yml
+deployment.apps/payment created
 
 #주문처리
 http localhost:8081/orders phoneNumber="01012345678",productName="coffee",qty=2,amt=2000   #Success
