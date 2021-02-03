@@ -430,7 +430,7 @@ payment     1         4         1            1           1m
 
 watch kubectl get pods
 ```
-![image](https://user-images.githubusercontent.com/75828964/106760302-ff47c600-6676-11eb-8f6e-d82865e06642.png
+![image](https://user-images.githubusercontent.com/75828964/106760302-ff47c600-6676-11eb-8f6e-d82865e06642.png)
 
 - siege 의 로그를 보아도 전체적인 성공률이 높아진 것을 확인 할 수 있다. 
 ```
