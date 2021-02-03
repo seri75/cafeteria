@@ -151,15 +151,17 @@ public interface OrderRepository extends PagingAndSortingRepository<Order, Long>
 - 적용 후 REST API 의 테스트
 ```
 # order 서비스의 주문처리
+```
 ![image](https://user-images.githubusercontent.com/75828964/106757723-0e794480-6674-11eb-8c25-54579c0c6a78.png)
-
+```
 # drink 서비스의 접수처리
+```
 ![image](https://user-images.githubusercontent.com/75828964/106757953-4ed8c280-6674-11eb-8049-2b16ee71ed47.png)
-
+```
 # customercenter 서비스의 상태확인
+```
 ![image](https://user-images.githubusercontent.com/75828964/106758091-7465cc00-6674-11eb-9df8-b93a08da3234.png)
 
-```
 
 
 ## 동기식 호출 과 Fallback 처리
@@ -217,15 +219,16 @@ $ kubectl delete deploy payment
 deployment.apps "payment" deleted
 
 #주문처리
+```
 ![image](https://user-images.githubusercontent.com/75828964/106758360-c4449300-6674-11eb-9d9c-4055219c3612.png)
-
+```
 #결제서비스 재기동
 $ kubectl apply -f deployment.yml
 deployment.apps/payment created
 
 #주문처리
-![image](https://user-images.githubusercontent.com/75828964/106758565-0077f380-6675-11eb-9c61-c13da5183897.png)
 ```
+![image](https://user-images.githubusercontent.com/75828964/106758565-0077f380-6675-11eb-9c61-c13da5183897.png)
 
 - 또한 과도한 요청시에 서비스 장애가 도미노 처럼 벌어질 수 있다. (서킷브레이커, 폴백 처리는 운영단계에서 설명한다.)
 
@@ -324,15 +327,17 @@ $ kubectl delete deploy drink
 deployment.apps "drink" deleted
 
 #주문처리
+```
 ![image](https://user-images.githubusercontent.com/75828964/106759046-9ca1fa80-6675-11eb-9782-9ba234c5747a.png)
-
+```
 #음료 서비스 기동
 kubectl apply -f deployment.yml
 deployment.apps/drink created
 
 #음료등록 확인
-![image](https://user-images.githubusercontent.com/75828964/106759161-c2c79a80-6675-11eb-9e08-cf98ec5b4fc2.png)
 ```
+![image](https://user-images.githubusercontent.com/75828964/106759161-c2c79a80-6675-11eb-9e08-cf98ec5b4fc2.png)
+
 
 
 # 운영
@@ -382,10 +387,9 @@ hystrix:
 - 동시사용자 100명
 - 60초 동안 실시
 
-```
 ![image](https://user-images.githubusercontent.com/75828964/106759329-f9051a00-6675-11eb-93fa-daf7924d5718.png)
 ![image](https://user-images.githubusercontent.com/75828964/106759337-fd313780-6675-11eb-90ac-e62f5fbc6648.png)
-```
+
 - 운영시스템은 죽지 않고 지속적으로 CB 에 의하여 적절히 회로가 열림과 닫힘이 벌어지면서 자원을 보호하고 있음을 보여줌. 하지만, 63.55% 가 성공하였고, 46%가 실패했다는 것은 고객 사용성에 있어 좋지 않기 때문에 Retry 설정과 동적 Scale out (replica의 자동적 추가,HPA) 을 통하여 시스템을 확장 해주는 후속처리가 필요.
 
 - Retry 의 설정 (istio)
@@ -400,16 +404,18 @@ hystrix:
 kubectl autoscale deploy payment --min=1 --max=10 --cpu-percent=15
 
 kubectl get pods
+```
 ![image](https://user-images.githubusercontent.com/75828964/106759802-80528d80-6676-11eb-9cbe-637498405ca7.png)
-
+```
 kubectl get hpa
+```
 ![image](https://user-images.githubusercontent.com/75828964/106759813-834d7e00-6676-11eb-8ba4-c3fe183b91c7.png)
 ```
 - CB 에서 했던 방식대로 워크로드를 2분 동안 걸어준다.
 ```
 ![image](https://user-images.githubusercontent.com/75828964/106760580-52217d80-6677-11eb-8e95-2c162d8b8b47.png)
 
-```
+
 - 오토스케일이 어떻게 되고 있는지 모니터링을 걸어둔다:
 ```
 kubectl get deploy payment -w
@@ -423,8 +429,9 @@ payment     1         4         1            1           1m
 :
 
 watch kubectl get pods
-![image](https://user-images.githubusercontent.com/75828964/106760302-ff47c600-6676-11eb-8f6e-d82865e06642.png
 ```
+![image](https://user-images.githubusercontent.com/75828964/106760302-ff47c600-6676-11eb-8f6e-d82865e06642.png
+
 - siege 의 로그를 보아도 전체적인 성공률이 높아진 것을 확인 할 수 있다. 
 ```
 Transactions:		        5078 hits
