@@ -41,7 +41,7 @@
 1. Event Storming 모델
 ![image](https://user-images.githubusercontent.com/75828964/106757223-70857a00-6673-11eb-85dc-35cc0bfd7206.png)
 1. 헥사고날 아키텍처 다이어그램 도출
-
+![image](https://user-images.githubusercontent.com/75828964/106765217-e8f03900-667b-11eb-8f19-10dc4756dc4b.png)
 # 구현:
 
 분석/설계 단계에서 도출된 헥사고날 아키텍처에 따라, 각 BC별로 대변되는 마이크로 서비스들을 스프링부트로 구현하였다. 구현한 각 서비스를 로컬에서 실행하는 방법은 아래와 같다 (각자의 포트넘버는 8081 ~ 808n 이다)
