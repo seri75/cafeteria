@@ -16,7 +16,10 @@ spec:
     spec:
       containers:
         - name: customercenter
-          image: beatific/customercenter:v1
+          image: beatific/customercenter:v2
+          env:
+          - name: SPRING_PROFILES_ACTIVE
+            value: "docker"
           ports:
             - containerPort: 8080
           readinessProbe:

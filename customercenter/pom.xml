@@ -19,6 +19,8 @@
 		<java.version>1.8</java.version>
 		<spring-cloud.version>Greenwich.RELEASE</spring-cloud.version>
 		<spring-cloud-stream.version>Germantown.SR1</spring-cloud-stream.version>
+		<scala.base>2.12</scala.base>
+		<scala.version>${scala.base}.1</scala.version>
 	</properties>
 
 	<dependencies>
@@ -60,9 +62,30 @@
 		</dependency>
 
 		<dependency>
-			<groupId>org.projectlombok</groupId>
-			<artifactId>lombok</artifactId>
+			<groupId>org.scala-lang</groupId>
+			<artifactId>scala-library</artifactId>
+			<version>${scala.version}</version>
 		</dependency>
+
+		<dependency>
+			<groupId>org.scala-lang</groupId>
+			<artifactId>scala-reflect</artifactId>
+			<version>${scala.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.scala-lang</groupId>
+			<artifactId>scala-compiler</artifactId>
+			<version>${scala.version}</version>
+		</dependency>
+
+<dependency>
+    <groupId>com.typesafe.scala-logging</groupId>
+    <artifactId>scala-logging_2.12</artifactId>
+    <version>3.9.2</version>
+</dependency>
+
+		
 	</dependencies>
 
 	<dependencyManagement>
@@ -89,6 +112,53 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+			<plugin>
+				<groupId>net.alchim31.maven</groupId>
+				<artifactId>scala-maven-plugin</artifactId>
+				<version>4.4.0</version>
+				<executions>
+					<execution>
+						<id>compile-scala</id>
+						<phase>compile</phase>
+						<goals>
+							<goal>add-source</goal>
+							<goal>compile</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>test-compile-scala</id>
+						<phase>test-compile</phase>
+						<goals>
+							<goal>add-source</goal>
+							<goal>testCompile</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<recompileMode>incremental</recompileMode>
+					<scalaVersion>${scala.version}</scalaVersion>
+					<args>
+						<arg>-deprecation</arg>
+					</args>
+					<jvmArgs>
+						<jvmArg>-Xms512m</jvmArg>
+						<jvmArg>-Xmx2048m</jvmArg>
+					</jvmArgs>
+				</configuration>
+			</plugin>
+			<plugin>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>default-compile</id>
+						<phase>none</phase>
+					</execution>
+					<execution>
+						<id>default-testCompile</id>
+						<phase>none</phase>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>
