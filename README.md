@@ -183,23 +183,35 @@ order 서비스는 h2 database보다 maria DB에 익숙한 개발자가 많아 m
 
 고객관리 서비스(customercenter)의 시나리오인 주문상태 변경에 따라 고객에게 카톡메시지 보내는 기능의 구현 파트는 해당 팀이 scala를 이용하여 구현하기로 하였다. 해당 파이썬 구현체는 각 이벤트를 수신하여 처리하는 Kafka consumer 로 구현되었고 코드는 다음과 같다:
 ```
-from flask import Flask
-from redis import Redis, RedisError
-from kafka import KafkaConsumer
-import os
-import socket
+import org.springframework.messaging.SubscribableChannel
+import org.springframework.cloud.stream.annotation.Output
+import org.springframework.cloud.stream.annotation.Input
+import org.springframework.messaging.MessageChannel
 
+object KafkaProcessor {
+  final val INPUT = "event-in"
+  final val OUTPUT = "event-out"
+}
 
-# To consume latest messages and auto-commit offsets
-consumer = KafkaConsumer('fooddelivery',
-                         group_id='',
-                         bootstrap_servers=['localhost:9092'])
-for message in consumer:
-    print ("%s:%d:%d: key=%s value=%s" % (message.topic, message.partition,
-                                          message.offset, message.key,
-                                          message.value))
+trait KafkaProcessor {
 
-    # 카톡호출 API
+  @Input(KafkaProcessor.INPUT)
+  def inboundTopic() :SubscribableChannel
+
+  @Output(KafkaProcessor.OUTPUT)
+  def outboundTopic() :MessageChannel
+}
+
+ # 카톡호출 API
+import org.springframework.stereotype.Component
+
+@Component
+class KakaoServiceImpl extends KakaoService {
+  
+	override def sendKakao(message :KakaoMessage) {
+		logger.info(s"\nTo. ${message.phoneNumber}\n${message.message}\n")
+	}
+}
 ```
 
 파이선 애플리케이션을 컴파일하고 실행하기 위한 도커파일은 아래와 같다 (운영단계에서 할일인가? 아니다 여기 까지가 개발자가 할일이다. Immutable Image):
