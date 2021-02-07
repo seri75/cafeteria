@@ -6,6 +6,8 @@
   - [분석/설계](#분석설계)
   - [구현:](#구현-)
     - [DDD 의 적용](#ddd-의-적용)
+    - [폴리글랏 퍼시스턴스](#폴리글랏-퍼시스턴스)
+    - [폴리글랏 프로그래밍](#폴리글랏-프로그래밍)
     - [동기식 호출 과 Fallback 처리](#동기식-호출-과-Fallback-처리)
     - [비동기식 호출 과 Eventual Consistency](#비동기식-호출--시간적-디커플링--장애격리--최종-eventual-일관성-테스트)
   - [운영](#운영)
@@ -162,7 +164,54 @@ public interface OrderRepository extends PagingAndSortingRepository<Order, Long>
 ```
 ![image](https://user-images.githubusercontent.com/75828964/106758091-7465cc00-6674-11eb-9df8-b93a08da3234.png)
 
+## 폴리글랏 퍼시스턴스
 
+order 서비스는 h2 database보다 maria DB에 익숙한 개발자가 많아 maria DB를 사용하기로 하였다. 이를 위해 order는 별다른 작업없이 기존의 Entity Pattern 과 Repository Pattern 적용과 데이터베이스 제품의 설정 (application.yml) 만으로 maria db에 부착시켰다
+
+```
+# application.yml
+
+  datasource:
+    url: jdbc:mariadb://my-mariadb-mariadb-galera.mariadb.svc.cluster.local:3306/cafeteria
+    driver-class-name: org.mariadb.jdbc.Driver
+    username: mariadb
+    password: mariadb
+
+```
+
+## 폴리글랏 프로그래밍
+
+고객관리 서비스(customercenter)의 시나리오인 주문상태 변경에 따라 고객에게 카톡메시지 보내는 기능의 구현 파트는 해당 팀이 scala를 이용하여 구현하기로 하였다. 해당 파이썬 구현체는 각 이벤트를 수신하여 처리하는 Kafka consumer 로 구현되었고 코드는 다음과 같다:
+```
+from flask import Flask
+from redis import Redis, RedisError
+from kafka import KafkaConsumer
+import os
+import socket
+
+
+# To consume latest messages and auto-commit offsets
+consumer = KafkaConsumer('fooddelivery',
+                         group_id='',
+                         bootstrap_servers=['localhost:9092'])
+for message in consumer:
+    print ("%s:%d:%d: key=%s value=%s" % (message.topic, message.partition,
+                                          message.offset, message.key,
+                                          message.value))
+
+    # 카톡호출 API
+```
+
+파이선 애플리케이션을 컴파일하고 실행하기 위한 도커파일은 아래와 같다 (운영단계에서 할일인가? 아니다 여기 까지가 개발자가 할일이다. Immutable Image):
+```
+FROM python:2.7-slim
+WORKDIR /app
+ADD . /app
+RUN pip install --trusted-host pypi.python.org -r requirements.txt
+ENV NAME World
+EXPOSE 8090
+CMD ["python", "policy-handler.py"]
+```
 
 ## 동기식 호출 과 Fallback 처리
 
