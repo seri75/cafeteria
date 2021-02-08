@@ -341,7 +341,7 @@ package cafeteria;
     }
 
 ```
-실제 구현을 하자면, 카톡은 화면에 출력으로 대체하였다.
+실제 구현에서 카톡은 화면에 출력으로 대체하였다.
   
 ```
 
@@ -360,6 +360,21 @@ package cafeteria;
             e.printStackTrace();
         }
     }
+    
+  @StreamListener(KafkaProcessor.INPUT)
+  def whenReceipted_then_UPDATE_3(@Payload made :Made) {
+    try {
+      if (made.isMe()) {
+        
+        val message :KakaoMessage = new KakaoMessage()
+        message.phoneNumber = made.phoneNumber
+        message.message = s"""Your Order is ${made.status}\nCome and Take it, Please!"""
+        kakaoService.sendKakao(message)
+      }
+    } catch {
+      case e :Exception => e.printStackTrace()
+    }
+  }
     
 package cafeteria.external;
 
