@@ -166,19 +166,109 @@ public interface OrderRepository extends PagingAndSortingRepository<Order, Long>
 
 ## 폴리글랏 퍼시스턴스
 
-order 서비스는 h2 database보다 maria DB에 익숙한 개발자가 많아 maria DB를 사용하기로 하였다. 이를 위해 order는 별다른 작업없이 기존의 Entity Pattern 과 Repository Pattern 적용과 데이터베이스 제품의 설정 (application.yml) 만으로 maria db에 부착시켰다
-
+앱프런트 (order) 는 서비스 특성상 많은 사용자의 유입과 상품 정보의 다양한 콘텐츠를 저장해야 하는 특징으로 인해 RDB 보다는 Document DB / NoSQL 계열의 데이터베이스인 Mongo DB 를 사용하기로 하였다. 이를 위해 order 의 선언에는 @Entity 가 아닌 @Document 로 마킹되었으며, 별다른 작업없이 기존의 Entity Pattern 과 Repository Pattern 적용과 데이터베이스 제품의 설정 (application.yml) 만으로 MongoDB 에 부착시켰다
 ```
 # application.yml
 
-  datasource:
-    url: jdbc:mariadb://my-mariadb-mariadb-galera.mariadb.svc.cluster.local:3306/cafeteria
-    driver-class-name: org.mariadb.jdbc.Driver
-    username: mariadb
-    password: mariadb
+spring:
+  data:
+    mongodb:
+      url: my-mongodb-headless.mongodb.svc.cluster.local:27017
+      database: ${MONGODB_DATABASE}
+      username: ${MONGODB_USERNAME}
+      password: ${MONGODB_PASSWORD}
+
+#buildspec.yaml
+spec:
+containers:
+  - name: $_PROJECT_NAME
+    env:
+    - name: MONGODB_DATABASE
+      valueFrom:
+	configMapKeyRef:
+	  name: mongodb
+	  key: database
+    - name: MONGODB_USERNAME
+      valueFrom:
+	secretKeyRef:
+	  name: mongodb
+	  key: username
+    - name: MONGODB_PASSWORD
+      valueFrom:
+	secretKeyRef:
+	  name: mongodb
+	  key: password
+
+#Order.java
+
+import org.springframework.data.mongodb.core.mapping.Document;
+
+@Document
+public class Order {
+
+    @Id
+    @GeneratedValue(strategy=GenerationType.AUTO)
+    private Long id;
+    private String phoneNumber;
+    private String productName;
+    private Integer qty;
+    private Integer amt;
+
+#pom.xml
+<dependencies>
+...
+    <dependency>
+	<groupId>org.springframework.boot</groupId>
+	<artifactId>spring-boot-starter-data-mongodb</artifactId>
+    </dependency>
+...
+</dependencies>
 
 ```
+drink 서비스는 maria DB에 익숙한 개발자가 많아 maria DB를 사용하기로 하였다. 이를 위해 order는 별다른 작업없이 기존의 Entity Pattern 과 Repository Pattern 적용과 데이터베이스 제품의 설정 (application.yml) 만으로 maria db에 부착시켰다
+```
+#application.yml
+spring:
+  datasource:
+    url: jdbc:mariadb://my-mariadb-mariadb-galera.mariadb.svc.cluster.local:3306/${MARIADB_DATABASE}
+    driver-class-name: org.mariadb.jdbc.Driver
+    username: ${MARIADB_USERNAME}
+    password: ${MARIADB_PASSWORD} 
 
+#buildspec.yaml
+spec:
+containers:
+  - name: $_PROJECT_NAME
+    env:
+    - name: MARIADB_DATABASE
+      valueFrom:
+	configMapKeyRef:
+	  name: mariadb
+	  key: database
+    - name: MARIADB_USERNAME
+      valueFrom:
+	secretKeyRef:
+	  name: mariadb
+	  key: username
+    - name: MARIADB_PASSWORD
+      valueFrom:
+	secretKeyRef:
+	  name: mariadb
+	  key: password
+	  
+#pom.xml
+<dependencies>
+...
+	<dependency>
+		<groupId>org.mariadb.jdbc</groupId> 
+		<artifactId>mariadb-java-client</artifactId> 
+	</dependency>
+...
+</dependencies>
+
+
+
+```
 ## 폴리글랏 프로그래밍
 
 고객관리 서비스(customercenter)의 시나리오인 주문상태 변경에 따라 고객에게 카톡메시지 보내는 기능의 구현 파트는 해당 팀이 scala를 이용하여 구현하기로 하였다. 해당 Scala 구현체는 각 이벤트를 수신하여 처리하는 Kafka consumer 로 구현되었고 코드는 다음과 같다:
