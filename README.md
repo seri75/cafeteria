@@ -166,52 +166,144 @@ public interface OrderRepository extends PagingAndSortingRepository<Order, Long>
 
 ## 폴리글랏 퍼시스턴스
 
-order 서비스는 h2 database보다 maria DB에 익숙한 개발자가 많아 maria DB를 사용하기로 하였다. 이를 위해 order는 별다른 작업없이 기존의 Entity Pattern 과 Repository Pattern 적용과 데이터베이스 제품의 설정 (application.yml) 만으로 maria db에 부착시켰다
-
+앱프런트 (order) 는 서비스 특성상 많은 사용자의 유입과 상품 정보의 다양한 콘텐츠를 저장해야 하는 특징으로 인해 RDB 보다는 Document DB / NoSQL 계열의 데이터베이스인 Mongo DB 를 사용하기로 하였다. 이를 위해 order 의 선언에는 @Entity 가 아닌 @Document 로 마킹되었으며, 별다른 작업없이 기존의 Entity Pattern 과 Repository Pattern 적용과 데이터베이스 제품의 설정 (application.yml) 만으로 MongoDB 에 부착시켰다
 ```
 # application.yml
 
-  datasource:
-    url: jdbc:mariadb://my-mariadb-mariadb-galera.mariadb.svc.cluster.local:3306/cafeteria
-    driver-class-name: org.mariadb.jdbc.Driver
-    username: mariadb
-    password: mariadb
+spring:
+  data:
+    mongodb:
+      url: my-mongodb-headless.mongodb.svc.cluster.local:27017
+      database: ${MONGODB_DATABASE}
+      username: ${MONGODB_USERNAME}
+      password: ${MONGODB_PASSWORD}
+
+#buildspec.yaml
+spec:
+containers:
+  - name: $_PROJECT_NAME
+    env:
+    - name: MONGODB_DATABASE
+      valueFrom:
+	configMapKeyRef:
+	  name: mongodb
+	  key: database
+    - name: MONGODB_USERNAME
+      valueFrom:
+	secretKeyRef:
+	  name: mongodb
+	  key: username
+    - name: MONGODB_PASSWORD
+      valueFrom:
+	secretKeyRef:
+	  name: mongodb
+	  key: password
+
+#Order.java
+
+import org.springframework.data.mongodb.core.mapping.Document;
+
+@Document
+public class Order {
+
+    @Id
+    @GeneratedValue(strategy=GenerationType.AUTO)
+    private Long id;
+    private String phoneNumber;
+    private String productName;
+    private Integer qty;
+    private Integer amt;
+
+#pom.xml
+<dependencies>
+...
+    <dependency>
+	<groupId>org.springframework.boot</groupId>
+	<artifactId>spring-boot-starter-data-mongodb</artifactId>
+    </dependency>
+...
+</dependencies>
 
 ```
+drink 서비스는 maria DB에 익숙한 개발자가 많아 maria DB를 사용하기로 하였다. 이를 위해 order는 별다른 작업없이 기존의 Entity Pattern 과 Repository Pattern 적용과 데이터베이스 제품의 설정 (application.yml) 만으로 maria db에 부착시켰다
+```
+#application.yml
+spring:
+  datasource:
+    url: jdbc:mariadb://my-mariadb-mariadb-galera.mariadb.svc.cluster.local:3306/${MARIADB_DATABASE}
+    driver-class-name: org.mariadb.jdbc.Driver
+    username: ${MARIADB_USERNAME}
+    password: ${MARIADB_PASSWORD} 
 
+#buildspec.yaml
+spec:
+containers:
+  - name: $_PROJECT_NAME
+    env:
+    - name: MARIADB_DATABASE
+      valueFrom:
+	configMapKeyRef:
+	  name: mariadb
+	  key: database
+    - name: MARIADB_USERNAME
+      valueFrom:
+	secretKeyRef:
+	  name: mariadb
+	  key: username
+    - name: MARIADB_PASSWORD
+      valueFrom:
+	secretKeyRef:
+	  name: mariadb
+	  key: password
+	  
+#pom.xml
+<dependencies>
+...
+	<dependency>
+		<groupId>org.mariadb.jdbc</groupId> 
+		<artifactId>mariadb-java-client</artifactId> 
+	</dependency>
+...
+</dependencies>
+
+
+
+```
 ## 폴리글랏 프로그래밍
 
-고객관리 서비스(customercenter)의 시나리오인 주문상태 변경에 따라 고객에게 카톡메시지 보내는 기능의 구현 파트는 해당 팀이 scala를 이용하여 구현하기로 하였다. 해당 파이썬 구현체는 각 이벤트를 수신하여 처리하는 Kafka consumer 로 구현되었고 코드는 다음과 같다:
+고객관리 서비스(customercenter)의 시나리오인 주문상태 변경에 따라 고객에게 카톡메시지 보내는 기능의 구현 파트는 해당 팀이 scala를 이용하여 구현하기로 하였다. 해당 Scala 구현체는 각 이벤트를 수신하여 처리하는 Kafka consumer 로 구현되었고 코드는 다음과 같다:
 ```
-from flask import Flask
-from redis import Redis, RedisError
-from kafka import KafkaConsumer
-import os
-import socket
+import org.springframework.messaging.SubscribableChannel
+import org.springframework.cloud.stream.annotation.Output
+import org.springframework.cloud.stream.annotation.Input
+import org.springframework.messaging.MessageChannel
 
+object KafkaProcessor {
+  final val INPUT = "event-in"
+  final val OUTPUT = "event-out"
+}
 
-# To consume latest messages and auto-commit offsets
-consumer = KafkaConsumer('fooddelivery',
-                         group_id='',
-                         bootstrap_servers=['localhost:9092'])
-for message in consumer:
-    print ("%s:%d:%d: key=%s value=%s" % (message.topic, message.partition,
-                                          message.offset, message.key,
-                                          message.value))
+trait KafkaProcessor {
 
-    # 카톡호출 API
+  @Input(KafkaProcessor.INPUT)
+  def inboundTopic() :SubscribableChannel
+
+  @Output(KafkaProcessor.OUTPUT)
+  def outboundTopic() :MessageChannel
+}
+
+ # 카톡호출 API
+import org.springframework.stereotype.Component
+
+@Component
+class KakaoServiceImpl extends KakaoService {
+  
+	override def sendKakao(message :KakaoMessage) {
+		logger.info(s"\nTo. ${message.phoneNumber}\n${message.message}\n")
+	}
+}
 ```
 
-파이선 애플리케이션을 컴파일하고 실행하기 위한 도커파일은 아래와 같다 (운영단계에서 할일인가? 아니다 여기 까지가 개발자가 할일이다. Immutable Image):
-```
-FROM python:2.7-slim
-WORKDIR /app
-ADD . /app
-RUN pip install --trusted-host pypi.python.org -r requirements.txt
-ENV NAME World
-EXPOSE 8090
-CMD ["python", "policy-handler.py"]
-```
 
 ## 동기식 호출 과 Fallback 처리
 
@@ -329,7 +421,7 @@ package cafeteria;
     }
 
 ```
-실제 구현을 하자면, 카톡은 화면에 출력으로 대체하였다.
+실제 구현에서 카톡은 화면에 출력으로 대체하였다.
   
 ```
 
@@ -348,6 +440,21 @@ package cafeteria;
             e.printStackTrace();
         }
     }
+    
+  @StreamListener(KafkaProcessor.INPUT)
+  def whenReceipted_then_UPDATE_3(@Payload made :Made) {
+    try {
+      if (made.isMe()) {
+        
+        val message :KakaoMessage = new KakaoMessage()
+        message.phoneNumber = made.phoneNumber
+        message.message = s"""Your Order is ${made.status}\nCome and Take it, Please!"""
+        kakaoService.sendKakao(message)
+      }
+    } catch {
+      case e :Exception => e.printStackTrace()
+    }
+  }
     
 package cafeteria.external;
 
