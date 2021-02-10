@@ -173,7 +173,7 @@ public interface OrderRepository extends PagingAndSortingRepository<Order, Long>
 spring:
   data:
     mongodb:
-      url: my-mongodb-headless.mongodb.svc.cluster.local:27017
+      uri: mongodb://my-mongodb-0.my-mongodb-headless.mongodb.svc.cluster.local:27017,my-mongodb-1.my-mongodb-headless.mongodb.svc.cluster.local:27017
       database: ${MONGODB_DATABASE}
       username: ${MONGODB_USERNAME}
       password: ${MONGODB_PASSWORD}
@@ -182,7 +182,12 @@ spring:
 spec:
 containers:
   - name: $_PROJECT_NAME
+    image: $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$_PROJECT_NAME:$CODEBUILD_RESOLVED_SOURCE_VERSION
+    ports:
+    - containerPort: 8080
     env:
+    - name: SPRING_PROFILES_ACTIVE
+      value: "docker"
     - name: MONGODB_DATABASE
       valueFrom:
 	configMapKeyRef:
@@ -199,20 +204,56 @@ containers:
 	  name: mongodb
 	  key: password
 
-#Order.java
-
-import org.springframework.data.mongodb.core.mapping.Document;
+#Mypage.scala
 
 @Document
-public class Order {
+class Mypage {
+  
+  @Id
+  @BeanProperty
+  var id :Long = 0L
+  ...
+```
+MongoDB는 Sequence가 지원되지 않아 별도 Collection을 통해서 id sequence를 생성했다.
+```
+# DatabseSequence.scala
+abstract class Sequence {
+  var seq :Long
+}
+case class InitialSequence(var seq : Long) extends Sequence
 
-    @Id
-    @GeneratedValue(strategy=GenerationType.AUTO)
-    private Long id;
-    private String phoneNumber;
-    private String productName;
-    private Integer qty;
-    private Integer amt;
+@Document(collection = "database_sequences")
+class DatabaseSequence extends Sequence {
+
+  
+  @BeanProperty
+  @Id
+  var id: String = null
+  
+  @BeanProperty
+  var seq :Long = 0L
+
+}
+
+# MypageViewHandler.scala
+
+def generateSequence (seqName :String) :Long = {
+    val query :Query = new Query(Criteria.where("_id").is(seqName));
+    val options :FindAndModifyOptions = new FindAndModifyOptions().returnNew(true).upsert(true)
+    val update :Update = new Update().inc("seq",1)
+    
+    val sequence :Option[DatabaseSequence] = Option(mongoOperations.findAndModify(query, update, options, classOf[DatabaseSequence]))
+    sequence.getOrElse(InitialSequence(1L)).seq
+}
+  
+  @StreamListener(KafkaProcessor.INPUT)
+  def whenOrdered_then_CREATE_1(@Payload ordered :Ordered) {
+    try {
+      if (ordered.isMe()) {
+        
+        val mypage :Mypage = new Mypage()
+        mypage.id = generateSequence(Mypage.SEQUENCE_NAME)
+	...
 
 #pom.xml
 <dependencies>
@@ -238,23 +279,23 @@ spring:
 #buildspec.yaml
 spec:
 containers:
-  - name: $_PROJECT_NAME
-    env:
-    - name: MARIADB_DATABASE
-      valueFrom:
-	configMapKeyRef:
-	  name: mariadb
-	  key: database
-    - name: MARIADB_USERNAME
-      valueFrom:
-	secretKeyRef:
-	  name: mariadb
-	  key: username
-    - name: MARIADB_PASSWORD
-      valueFrom:
-	secretKeyRef:
-	  name: mariadb
-	  key: password
+- name: $_PROJECT_NAME
+  env:
+  - name: MARIADB_DATABASE
+    valueFrom:
+      configMapKeyRef:
+	name: mariadb
+	key: database
+  - name: MARIADB_USERNAME
+    valueFrom:
+      secretKeyRef:
+	name: mariadb
+	key: username
+  - name: MARIADB_PASSWORD
+    valueFrom:
+      secretKeyRef:
+	name: mariadb
+	key: password
 	  
 #pom.xml
 <dependencies>
@@ -302,12 +343,12 @@ class KakaoServiceImpl extends KakaoService {
 		logger.info(s"\nTo. ${message.phoneNumber}\n${message.message}\n")
 	}
 }
-```
 
+```
 
 ## 동기식 호출 과 Fallback 처리
 
-분석단계에서의 조건 중 하나로 주문(app)->결제(pay) 간의 호출은 동기식 일관성을 유지하는 트랜잭션으로 처리하기로 하였다. 호출 프로토콜은 이미 앞서 Rest Repository 에 의해 노출되어있는 REST 서비스를 FeignClient 를 이용하여 호출하도록 한다. 
+분석단계에서의 조건 중 하나로 주문(order)->결제(payment) 간의 호출은 동기식 일관성을 유지하는 트랜잭션으로 처리하기로 하였다. 호출 프로토콜은 이미 앞서 Rest Repository 에 의해 노출되어있는 REST 서비스를 FeignClient 를 이용하여 호출하도록 한다. 
 
 - 결제서비스를 호출하기 위하여 Stub과 (FeignClient) 를 이용하여 Service 대행 인터페이스 (Proxy) 를 구현 
 
@@ -423,24 +464,7 @@ package cafeteria;
 ```
 실제 구현에서 카톡은 화면에 출력으로 대체하였다.
   
-```
-
-    @StreamListener(KafkaProcessor.INPUT)
-    public void whenMade_then_UPDATE_4(@Payload Made made) {
-        try {
-            if (made.isMe()) {
-                // view 객체 조회
-            	
-            	  KakaoMessage message = new KakaoMessage();
-                message.setPhoneNumber(made.getPhoneNumber());
-                message.setMessage(new StringBuffer("Your Order is ").append(made.getStatus()).append("\nCome and Take it, Please!").toString());
-                kakaoService.sendKakao(message);
-            }
-        }catch (Exception e){
-            e.printStackTrace();
-        }
-    }
-    
+```    
   @StreamListener(KafkaProcessor.INPUT)
   def whenReceipted_then_UPDATE_3(@Payload made :Made) {
     try {
@@ -455,22 +479,13 @@ package cafeteria;
       case e :Exception => e.printStackTrace()
     }
   }
-    
-package cafeteria.external;
 
-import org.springframework.stereotype.Component;
-
-import lombok.extern.slf4j.Slf4j;
-
-@Slf4j
 @Component
-public class KakaoServiceImpl implements KakaoService {
-
-	@Override
-	public void sendKakao(KakaoMessage message) {
-		log.info("\nTo. {}\n{}\n", message.getPhoneNumber(), message.getMessage());
+class KakaoServiceImpl extends KakaoService {
+  
+	override def sendKakao(message :KakaoMessage) {
+		logger.info(s"\nTo. ${message.phoneNumber}\n${message.message}\n")
 	}
-
 }
 
 
@@ -508,7 +523,7 @@ deployment.apps/drink created
 
 * 서킷 브레이킹 프레임워크의 선택: Spring FeignClient + Hystrix 옵션을 사용하여 구현함
 
-시나리오는 단말앱(app)-->결제(pay) 시의 연결을 RESTful Request/Response 로 연동하여 구현이 되어있고, 결제 요청이 과도할 경우 CB 를 통하여 장애격리.
+시나리오는 단말앱(order)-->결제(payment) 시의 연결을 RESTful Request/Response 로 연동하여 구현이 되어있고, 결제 요청이 과도할 경우 CB 를 통하여 장애격리.
 
 - Hystrix 를 설정:  요청처리 쓰레드에서 처리시간이 610 밀리가 넘어서기 시작하여 어느정도 유지되면 CB 회로가 닫히도록 (요청을 빠르게 실패처리, 차단) 설정
 ```
@@ -522,9 +537,9 @@ hystrix:
 
 ```
 
-- 피호출 서비스(결제:pay) 의 임의 부하 처리 - 400 밀리에서 증감 220 밀리 정도 왔다갔다 하게
+- 피호출 서비스(결제:payment) 의 임의 부하 처리 - 400 밀리에서 증감 220 밀리 정도 왔다갔다 하게
 ```
-# (pay) 결제이력.java (Entity)
+# (payment) Payment.java (Entity)
 
     @PrePersist
     public void onPrePersist(){  //결제이력을 저장한 후 적당한 시간 끌기
