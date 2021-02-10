@@ -173,7 +173,7 @@ public interface OrderRepository extends PagingAndSortingRepository<Order, Long>
 spring:
   data:
     mongodb:
-      url: my-mongodb-headless.mongodb.svc.cluster.local:27017
+      uri: mongodb://my-mongodb-0.my-mongodb-headless.mongodb.svc.cluster.local:27017,my-mongodb-1.my-mongodb-headless.mongodb.svc.cluster.local:27017
       database: ${MONGODB_DATABASE}
       username: ${MONGODB_USERNAME}
       password: ${MONGODB_PASSWORD}
@@ -182,7 +182,12 @@ spring:
 spec:
 containers:
   - name: $_PROJECT_NAME
+    image: $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$_PROJECT_NAME:$CODEBUILD_RESOLVED_SOURCE_VERSION
+    ports:
+    - containerPort: 8080
     env:
+    - name: SPRING_PROFILES_ACTIVE
+      value: "docker"
     - name: MONGODB_DATABASE
       valueFrom:
 	configMapKeyRef:
@@ -199,20 +204,56 @@ containers:
 	  name: mongodb
 	  key: password
 
-#Order.java
-
-import org.springframework.data.mongodb.core.mapping.Document;
+#Mypage.scala
 
 @Document
-public class Order {
+class Mypage {
+  
+  @Id
+  @BeanProperty
+  var id :Long = 0L
+  ...
+```
+MongoDB는 Sequence가 지원되지 않아 별도 Collection을 통해서 id sequence를 생성했다.
+```
+# DatabseSequence.scala
+abstract class Sequence {
+  var seq :Long
+}
+case class InitialSequence(var seq : Long) extends Sequence
 
-    @Id
-    @GeneratedValue(strategy=GenerationType.AUTO)
-    private Long id;
-    private String phoneNumber;
-    private String productName;
-    private Integer qty;
-    private Integer amt;
+@Document(collection = "database_sequences")
+class DatabaseSequence extends Sequence {
+
+  
+  @BeanProperty
+  @Id
+  var id: String = null
+  
+  @BeanProperty
+  var seq :Long = 0L
+
+}
+
+# MypageViewHandler.scala
+
+def generateSequence (seqName :String) :Long = {
+    val query :Query = new Query(Criteria.where("_id").is(seqName));
+    val options :FindAndModifyOptions = new FindAndModifyOptions().returnNew(true).upsert(true)
+    val update :Update = new Update().inc("seq",1)
+    
+    val sequence :Option[DatabaseSequence] = Option(mongoOperations.findAndModify(query, update, options, classOf[DatabaseSequence]))
+    sequence.getOrElse(InitialSequence(1L)).seq
+}
+  
+  @StreamListener(KafkaProcessor.INPUT)
+  def whenOrdered_then_CREATE_1(@Payload ordered :Ordered) {
+    try {
+      if (ordered.isMe()) {
+        
+        val mypage :Mypage = new Mypage()
+        mypage.id = generateSequence(Mypage.SEQUENCE_NAME)
+	...
 
 #pom.xml
 <dependencies>
@@ -238,23 +279,23 @@ spring:
 #buildspec.yaml
 spec:
 containers:
-  - name: $_PROJECT_NAME
-    env:
-    - name: MARIADB_DATABASE
-      valueFrom:
-	configMapKeyRef:
-	  name: mariadb
-	  key: database
-    - name: MARIADB_USERNAME
-      valueFrom:
-	secretKeyRef:
-	  name: mariadb
-	  key: username
-    - name: MARIADB_PASSWORD
-      valueFrom:
-	secretKeyRef:
-	  name: mariadb
-	  key: password
+- name: $_PROJECT_NAME
+  env:
+  - name: MARIADB_DATABASE
+    valueFrom:
+      configMapKeyRef:
+	name: mariadb
+	key: database
+  - name: MARIADB_USERNAME
+    valueFrom:
+      secretKeyRef:
+	name: mariadb
+	key: username
+  - name: MARIADB_PASSWORD
+    valueFrom:
+      secretKeyRef:
+	name: mariadb
+	key: password
 	  
 #pom.xml
 <dependencies>
@@ -302,8 +343,8 @@ class KakaoServiceImpl extends KakaoService {
 		logger.info(s"\nTo. ${message.phoneNumber}\n${message.message}\n")
 	}
 }
-```
 
+```
 
 ## 동기식 호출 과 Fallback 처리
 
@@ -423,24 +464,7 @@ package cafeteria;
 ```
 실제 구현에서 카톡은 화면에 출력으로 대체하였다.
   
-```
-
-    @StreamListener(KafkaProcessor.INPUT)
-    public void whenMade_then_UPDATE_4(@Payload Made made) {
-        try {
-            if (made.isMe()) {
-                // view 객체 조회
-            	
-            	  KakaoMessage message = new KakaoMessage();
-                message.setPhoneNumber(made.getPhoneNumber());
-                message.setMessage(new StringBuffer("Your Order is ").append(made.getStatus()).append("\nCome and Take it, Please!").toString());
-                kakaoService.sendKakao(message);
-            }
-        }catch (Exception e){
-            e.printStackTrace();
-        }
-    }
-    
+```    
   @StreamListener(KafkaProcessor.INPUT)
   def whenReceipted_then_UPDATE_3(@Payload made :Made) {
     try {
@@ -455,22 +479,13 @@ package cafeteria;
       case e :Exception => e.printStackTrace()
     }
   }
-    
-package cafeteria.external;
 
-import org.springframework.stereotype.Component;
-
-import lombok.extern.slf4j.Slf4j;
-
-@Slf4j
 @Component
-public class KakaoServiceImpl implements KakaoService {
-
-	@Override
-	public void sendKakao(KakaoMessage message) {
-		log.info("\nTo. {}\n{}\n", message.getPhoneNumber(), message.getMessage());
+class KakaoServiceImpl extends KakaoService {
+  
+	override def sendKakao(message :KakaoMessage) {
+		logger.info(s"\nTo. ${message.phoneNumber}\n${message.message}\n")
 	}
-
 }
 
 
