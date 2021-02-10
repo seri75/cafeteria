@@ -17,6 +17,7 @@ spec:
       containers:
       - name: drink 
         image: beatific/drink:v1
+        imagePullPolicy: Always
         ports:
         - containerPort: 8080
         env:

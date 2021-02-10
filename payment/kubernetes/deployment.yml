@@ -17,6 +17,7 @@ spec:
       containers:
       - name: payment
         image: beatific/payment:v2
+        imagePullPolicy: Always
         ports:
         - containerPort: 8080
         readinessProbe:

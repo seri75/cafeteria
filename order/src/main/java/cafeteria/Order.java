@@ -1,5 +1,7 @@
 package cafeteria;
 
+import java.util.Date;
+
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
@@ -26,6 +28,7 @@ public class Order {
     private Integer qty;
     private Integer amt;
     private String status = "Ordered";
+    private Date createTime = new Date();
     
     @PostPersist
     public void onPostPersist(){
@@ -97,6 +100,13 @@ public class Order {
         this.status = status;
     }
 
+    public Date getCreateTime() {
+        return createTime;
+    }
+
+    public void setCreateTime(Date createTime) {
+        this.createTime = createTime;
+    } 
 
 
 

@@ -27,20 +27,11 @@ public class PolicyHandler{
             System.out.println("##### listener  : " + ordered.toJson());
             
             List<Drink> drinks = drinkRepository.findByOrderId(ordered.getId());
-            if(drinks.size() == 0) {
-            	Drink drink = new Drink();
-                drink.setOrderId(ordered.getId());
-            	drink.setPhoneNumber(ordered.getPhoneNumber());
+            for(Drink drink : drinks) {
+           	drink.setPhoneNumber(ordered.getPhoneNumber());
             	drink.setProductName(ordered.getProductName());
-            	drink.setQty(ordered.getQty());
-            	drinkRepository.save(drink);
-            } else {
-            	for(Drink drink : drinks) {
-            		drink.setPhoneNumber(ordered.getPhoneNumber());
-            		drink.setProductName(ordered.getProductName());
-                	drink.setQty(ordered.getQty());
-                	drinkRepository.save(drink);
-            	}
+               	drink.setQty(ordered.getQty());
+               	drinkRepository.save(drink);
             }
             
             
@@ -53,18 +44,10 @@ public class PolicyHandler{
         if(paymentApproved.isMe()){
             System.out.println("##### listener  : " + paymentApproved.toJson());
             
-            List<Drink> drinks = drinkRepository.findByOrderId(paymentApproved.getOrderId());
-            if(drinks.size() == 0) {
-            	Drink drink = new Drink();
-            	drink.setOrderId(paymentApproved.getOrderId());
-            	drink.setStatus(paymentApproved.getStatus());
-            	drinkRepository.save(drink);
-            } else {
-            	for(Drink drink : drinks) {
-            		drink.setStatus(paymentApproved.getStatus());
-            		drinkRepository.save(drink);
-            	}
-            }
+            Drink drink = new Drink();
+            drink.setOrderId(paymentApproved.getOrderId());
+            drink.setStatus(paymentApproved.getStatus());
+            drinkRepository.save(drink);
         }
     }
     @StreamListener(KafkaProcessor.INPUT)

@@ -4,18 +4,21 @@ import javax.persistence.*;
 import org.springframework.beans.BeanUtils;
 import java.util.List;
 
+import java.util.Date;
+
 @Entity
 @Table(name="Drink")
 public class Drink {
 
     @Id
-    @GeneratedValue(strategy=GenerationType.IDENTITY)
+    @GeneratedValue(strategy=GenerationType.AUTO)
     private Long id;
     private Long orderId;
     private String productName;
     private Integer qty;
     private String phoneNumber;
     private String status;
+    private Date createTime = new Date();
 
     @PostPersist
     public void onPostPersist(){
@@ -91,6 +94,14 @@ public class Drink {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public Date getCreateTime() {
+        return createTime;
+    }
+
+    public void setCreateTime(Date createTime) {
+        this.createTime = createTime;
     }
 
 }

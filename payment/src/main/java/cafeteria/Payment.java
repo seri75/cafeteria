@@ -3,6 +3,7 @@ package cafeteria;
 import javax.persistence.*;
 import org.springframework.beans.BeanUtils;
 import java.util.List;
+import java.util.Date;
 
 @Entity
 @Table(name="Payment")
@@ -15,6 +16,7 @@ public class Payment {
     private String phoneNumber;
     private Integer amt;
     private String status = "PaymentApproved";
+    private Date createTime = new Date();
 
     @PostPersist
     public void onPostPersist(){
@@ -74,7 +76,12 @@ public class Payment {
         this.status = status;
     }
 
+    public Date getCreateTime() {
+        return createTime;
+    }
 
-
+    public void setCreateTime(Date createTime) {
+        this.createTime = createTime;
+    }
 
 }
