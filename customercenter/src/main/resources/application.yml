@@ -41,6 +41,12 @@ server:
 
 spring:
   profiles: docker
+  data:
+    mongodb:
+      uri: mongodb://my-mongodb-0.my-mongodb-headless.mongodb.svc.cluster.local:27017,my-mongodb-1.my-mongodb-headless.mongodb.svc.cluster.local:27017
+      database: ${MONGODB_DATABASE}
+      username: ${MONGODB_USERNAME}
+      password: ${MONGODB_PASSWORD}
   cloud:
     stream:
       kafka:

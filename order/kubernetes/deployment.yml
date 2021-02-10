@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: order
-        image: beatific/order:v3
+        image: beatific/order:v6
         ports:
         - containerPort: 8080
         readinessProbe:

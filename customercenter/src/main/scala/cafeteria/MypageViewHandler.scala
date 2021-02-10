@@ -8,6 +8,11 @@ import org.springframework.messaging.handler.annotation.Payload
 import cafeteria.config.kafka.KafkaProcessor
 import cafeteria.external.KakaoMessage
 import scala.collection.JavaConverters._
+import org.springframework.data.mongodb.core.MongoOperations
+import org.springframework.data.mongodb.core.query.Update
+import org.springframework.data.mongodb.core.query.Criteria
+import org.springframework.data.mongodb.core.query.Query
+import org.springframework.data.mongodb.core.FindAndModifyOptions
 
 @Service
 class MypageViewHandler {
@@ -18,11 +23,25 @@ class MypageViewHandler {
   @Autowired
   private val mypageRepository :MypageRepository = null
   
+  @Autowired
+  private val mongoOperations :MongoOperations = null
+  
+  def generateSequence (seqName :String) :Long = {
+    val query :Query = new Query(Criteria.where("_id").is(seqName));
+    val options :FindAndModifyOptions = new FindAndModifyOptions().returnNew(true).upsert(true)
+    val update :Update = new Update().inc("seq",1)
+    
+    val sequence :Option[DatabaseSequence] = Option(mongoOperations.findAndModify(query, update, options, classOf[DatabaseSequence]))
+    sequence.getOrElse(InitialSequence(1L)).seq
+}
+  
   @StreamListener(KafkaProcessor.INPUT)
   def whenOrdered_then_CREATE_1(@Payload ordered :Ordered) {
     try {
       if (ordered.isMe()) {
+        
         val mypage :Mypage = new Mypage()
+        mypage.id = generateSequence(Mypage.SEQUENCE_NAME)
         mypage.orderId = ordered.id
         mypage.productName = ordered.productName
         mypage.qty = ordered.qty

@@ -1,17 +1,18 @@
 package cafeteria
 
-import javax.persistence.Entity
-import javax.persistence.Table
-import javax.persistence.GeneratedValue
-import javax.persistence.Id
-import javax.persistence.GenerationType
 import scala.beans.BeanProperty
+import org.springframework.data.mongodb.core.mapping.Document
+import org.springframework.data.annotation.Id
+import org.springframework.data.annotation.Transient
 
-@Entity
-@Table(name="Mypage")
+object Mypage {
+  val SEQUENCE_NAME :String = "mypage_sequence"  
+}
+
+@Document
 class Mypage {
+  
   @Id
-  @GeneratedValue(strategy=GenerationType.AUTO)
   @BeanProperty
   var id :Long = 0L
   
