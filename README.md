@@ -256,6 +256,7 @@ def generateSequence (seqName :String) :Long = {
 	...
 
 #pom.xml
+
 <dependencies>
 ...
     <dependency>
@@ -264,50 +265,6 @@ def generateSequence (seqName :String) :Long = {
     </dependency>
 ...
 </dependencies>
-
-```
-drink 서비스는 maria DB에 익숙한 개발자가 많아 maria DB를 사용하기로 하였다. 이를 위해 order는 별다른 작업없이 기존의 Entity Pattern 과 Repository Pattern 적용과 데이터베이스 제품의 설정 (application.yml) 만으로 maria db에 부착시켰다
-```
-#application.yml
-spring:
-  datasource:
-    url: jdbc:mariadb://my-mariadb-mariadb-galera.mariadb.svc.cluster.local:3306/${MARIADB_DATABASE}
-    driver-class-name: org.mariadb.jdbc.Driver
-    username: ${MARIADB_USERNAME}
-    password: ${MARIADB_PASSWORD} 
-
-#buildspec.yaml
-spec:
-containers:
-- name: $_PROJECT_NAME
-  env:
-  - name: MARIADB_DATABASE
-    valueFrom:
-      configMapKeyRef:
-	name: mariadb
-	key: database
-  - name: MARIADB_USERNAME
-    valueFrom:
-      secretKeyRef:
-	name: mariadb
-	key: username
-  - name: MARIADB_PASSWORD
-    valueFrom:
-      secretKeyRef:
-	name: mariadb
-	key: password
-	  
-#pom.xml
-<dependencies>
-...
-	<dependency>
-		<groupId>org.mariadb.jdbc</groupId> 
-		<artifactId>mariadb-java-client</artifactId> 
-	</dependency>
-...
-</dependencies>
-
-
 
 ```
 ## 폴리글랏 프로그래밍
