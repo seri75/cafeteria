@@ -52,7 +52,7 @@ public class PolicyHandler{
     }
 
     @StreamListener(KafkaProcessor.INPUT)
-    public void wheneverPaymentCanceled_(@Payload OrderCanceled orderCanceled){
+    public void wheneverOrderCanceled_(@Payload OrderCanceled orderCanceled){
 
         if(orderCanceled.isMe()){
             System.out.println("##### listener  : " + orderCanceled.toJson());
@@ -61,6 +61,7 @@ public class PolicyHandler{
             if(drinks.stream().filter(drink -> !"PaymentApproved".equals(drink.getStatus())).count() > 0) {
             	CancelFailed fail = new CancelFailed();
             	fail.setOrderId(orderCanceled.getId());
+		fail.setPhoneNumber(orderCanceled.getPhoneNumber());
             	fail.publish();
             } else {
             
