@@ -72,7 +72,7 @@ class MypageViewHandler {
       
         val message :KakaoMessage = new KakaoMessage()
         message.phoneNumber = paymentCanceled.phoneNumber
-        message.message = s"""Your Order is ${paymentCanceled.status}"""
+        message.message = s"""Your Payment is Canceled"""
         kakaoService.sendKakao(message)
       }
     } catch {
