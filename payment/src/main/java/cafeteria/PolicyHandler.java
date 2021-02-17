@@ -13,7 +13,7 @@ import cafeteria.config.kafka.KafkaProcessor;
 public class PolicyHandler{
 	
 	@Autowired
-    private PaymentRepository pyamentRepository;
+    private PaymentRepository paymentRepository;
 	
     @StreamListener(KafkaProcessor.INPUT)
     public void onStringEventListener(@Payload String eventString){
@@ -21,17 +21,18 @@ public class PolicyHandler{
     }
 
     @StreamListener(KafkaProcessor.INPUT)
-    public void wheneverOrderCanceled_(@Payload OrderCanceled orderCanceled){
+    public void wheneverDrinkCanceled_(@Payload DrinkCanceled drinkCanceled){
 
-        if(orderCanceled.isMe()){
-            System.out.println("##### listener  : " + orderCanceled.toJson());
+        if(drinkCanceled.isMe()){
+            System.out.println("##### listener  : " + drinkCanceled.toJson());
             
-            List<Payment> payments = pyamentRepository.findByOrderId(orderCanceled.getId());
+            List<Payment> payments = paymentRepository.findByOrderId(drinkCanceled.getOrderId());
             for(Payment payment : payments) {
             	payment.setStatus("PaymentCanceled");
-            	pyamentRepository.save(payment);
+            	paymentRepository.save(payment);
             }
         }
     }
 
 }
+
