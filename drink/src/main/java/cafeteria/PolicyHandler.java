@@ -50,18 +50,25 @@ public class PolicyHandler{
             drinkRepository.save(drink);
         }
     }
-    @StreamListener(KafkaProcessor.INPUT)
-    public void wheneverPaymentCanceled_(@Payload PaymentCanceled paymentCanceled){
 
-        if(paymentCanceled.isMe()){
-            System.out.println("##### listener  : " + paymentCanceled.toJson());
+    @StreamListener(KafkaProcessor.INPUT)
+    public void wheneverPaymentCanceled_(@Payload OrderCanceled orderCanceled){
+
+        if(orderCanceled.isMe()){
+            System.out.println("##### listener  : " + orderCanceled.toJson());
             
-            List<Drink> drinks = drinkRepository.findByOrderId(paymentCanceled.getOrderId());
-            for(Drink drink : drinks) {
-            	drink.setStatus("DrinkCancled");
-            	drinkRepository.save(drink);
+            List<Drink> drinks = drinkRepository.findByOrderId(orderCanceled.getId());
+            if(drinks.stream().filter(drink -> !"PaymentApproved".equals(drink.getStatus())).count() > 0) {
+            	CancelFailed fail = new CancelFailed();
+            	fail.setOrderId(orderCanceled.getId());
+            	fail.publish();
+            } else {
+            
+                for(Drink drink : drinks) {
+               	    drink.setStatus("DrinkCancled");
+                    drinkRepository.save(drink);
+                }
             }
         }
     }
-
 }
