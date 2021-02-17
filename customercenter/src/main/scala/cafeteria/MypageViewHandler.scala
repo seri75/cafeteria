@@ -62,24 +62,24 @@ class MypageViewHandler {
   }
 
   @StreamListener(KafkaProcessor.INPUT)
-  def whenOrderCanceled_then_UPDATE_1(@Payload orderCanceled :OrderCanceled) {
+  def whenPaymentCanceled_then_UPDATE_1(@Payload paymentCanceled :PaymentCanceled) {
     try {
-      if (orderCanceled.isMe()) {
-        mypageRepository.findByOrderId(orderCanceled.id).asScala.foreach(page => {
-          page.status = orderCanceled.status
+      if (paymentCanceled.isMe()) {
+        mypageRepository.findByOrderId(paymentCanceled.orderId).asScala.foreach(page => {
+          page.status = paymentCanceled.status
           mypageRepository.save(page)
         })
       
         val message :KakaoMessage = new KakaoMessage()
-        message.phoneNumber = orderCanceled.phoneNumber
-        message.message = s"""Your Order is ${orderCanceled.status}"""
+        message.phoneNumber = paymentCanceled.phoneNumber
+        message.message = s"""Your Order is ${paymentCanceled.status}"""
         kakaoService.sendKakao(message)
       }
     } catch {
       case e :Exception => e.printStackTrace()
     }
-  }
-  
+  } 
+
   @StreamListener(KafkaProcessor.INPUT)
   def whenReceipted_then_UPDATE_2(@Payload receipted :Receipted) {
     try {
