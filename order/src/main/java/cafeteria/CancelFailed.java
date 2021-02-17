@@ -4,10 +4,12 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 
-@ToString
+@ToString @Getter @Setter
 public class CancelFailed extends AbstractEvent {
 
-    @Getter @Setter
+	
     private Long orderId;
+	
+    private String phoneNumber;
 
 }
