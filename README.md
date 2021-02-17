@@ -41,7 +41,7 @@
     1. 주문상태가 바뀔때마다 카톡 등으로 알림을 줄 수 있어야 한다  Event driven
 # 분석설계
 1. Event Storming 모델
-![image](https://user-images.githubusercontent.com/75828964/106757223-70857a00-6673-11eb-85dc-35cc0bfd7206.png)
+![image](https://user-images.githubusercontent.com/75828964/108243412-685c2d00-7191-11eb-8c8b-04afcd150ee5.png)
 1. 헥사고날 아키텍처 다이어그램 도출
 ![image](https://user-images.githubusercontent.com/75828964/106765217-e8f03900-667b-11eb-8f19-10dc4756dc4b.png)
 # 구현:
