@@ -48,10 +48,13 @@ public class Order {
 
     @PostUpdate
     public void onPostUpdate(){
-        OrderCanceled orderCanceled = new OrderCanceled();
-        BeanUtils.copyProperties(this, orderCanceled);
-        orderCanceled.publishAfterCommit();
-
+        switch(this.status) {
+    	case "OrderCanceled" : 
+    		OrderCanceled orderCanceled = new OrderCanceled();
+            BeanUtils.copyProperties(this, orderCanceled);
+            orderCanceled.publishAfterCommit();
+            break;
+    	}
 
     }
 
