@@ -168,7 +168,7 @@ public interface OrderRepository extends PagingAndSortingRepository<Order, Long>
 
 ## 폴리글랏 퍼시스턴스
 
-앱프런트 (order) 는 서비스 특성상 많은 사용자의 유입과 상품 정보의 다양한 콘텐츠를 저장해야 하는 특징으로 인해 RDB 보다는 Document DB / NoSQL 계열의 데이터베이스인 Mongo DB 를 사용하기로 하였다. 이를 위해 order 의 선언에는 @Entity 가 아닌 @Document 로 마킹되었으며, 별다른 작업없이 기존의 Entity Pattern 과 Repository Pattern 적용과 데이터베이스 제품의 설정 (application.yml) 만으로 MongoDB 에 부착시켰다
+고객센터(customercenter)는 RDB 보다는 Document DB / NoSQL 계열의 데이터베이스인 Mongo DB 를 사용하기로 하였다. 이를 위해 customercenter의 선언에는 @Entity 가 아닌 @Document로 변경 되었으며, 기존의 Entity Pattern 과 Repository Pattern 적용과 데이터베이스 제품의 설정 (application.yml)과 아래 채번기능 개발 만으로 MongoDB 에 부착시켰다
 ```
 # application.yml
 
