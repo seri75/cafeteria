@@ -27,12 +27,14 @@
 1. 바리스타는 주문내역을 확인하여 음료를 접수하고 제조한다.
 1. 고객이 주문을 취소할 수 있다
 1. 주문이 취소되면 음료를 취소한다.
-1. 고객이 주문상태를 중간중간 조회한다.
-1. 주문상태가 바뀔 때 마다 카톡으로 알림을 보낸다.
+2. 음료가 취소되면 결제를 취소한다.
+3. 고객이 주문상태를 중간중간 조회한다.
+4. 주문상태가 바뀔 때 마다 카톡으로 알림을 보낸다.
 
 비기능적 요구사항
 1. 트랜잭션
     1. 결제가 되지 않은 주문건은 아예 거래가 성립되지 않아야 한다  Sync 호출
+    2. 바리스타가 접수하여 제조를 시작한 주문은 취소되지 않아야 한다. Saga(보상 트랜잭션)
 1. 장애격리
     1. 음료제조 기능이 수행되지 않더라도 주문은 받을 수 있어야 한다  Async (event-driven), Eventual Consistency
     1. 결제시스템이 과중되면 사용자를 잠시동안 받지 않고 결제를 잠시후에 하도록 유도한다  Circuit breaker, fallback
@@ -41,7 +43,7 @@
     1. 주문상태가 바뀔때마다 카톡 등으로 알림을 줄 수 있어야 한다  Event driven
 # 분석설계
 1. Event Storming 모델
-![image](https://user-images.githubusercontent.com/75828964/106757223-70857a00-6673-11eb-85dc-35cc0bfd7206.png)
+![image](https://user-images.githubusercontent.com/75828964/108243412-685c2d00-7191-11eb-8c8b-04afcd150ee5.png)
 1. 헥사고날 아키텍처 다이어그램 도출
 ![image](https://user-images.githubusercontent.com/75828964/106765217-e8f03900-667b-11eb-8f19-10dc4756dc4b.png)
 # 구현:
@@ -166,7 +168,7 @@ public interface OrderRepository extends PagingAndSortingRepository<Order, Long>
 
 ## 폴리글랏 퍼시스턴스
 
-앱프런트 (order) 는 서비스 특성상 많은 사용자의 유입과 상품 정보의 다양한 콘텐츠를 저장해야 하는 특징으로 인해 RDB 보다는 Document DB / NoSQL 계열의 데이터베이스인 Mongo DB 를 사용하기로 하였다. 이를 위해 order 의 선언에는 @Entity 가 아닌 @Document 로 마킹되었으며, 별다른 작업없이 기존의 Entity Pattern 과 Repository Pattern 적용과 데이터베이스 제품의 설정 (application.yml) 만으로 MongoDB 에 부착시켰다
+고객센터(customercenter)는 RDB 보다는 Document DB / NoSQL 계열의 데이터베이스인 Mongo DB 를 사용하기로 하였다. 이를 위해 customercenter의 선언에는 @Entity 가 아닌 @Document로 변경 되었으며, 기존의 Entity Pattern 과 Repository Pattern 적용과 데이터베이스 제품의 설정 (application.yml)과 아래 채번기능 개발 만으로 MongoDB 에 부착시켰다
 ```
 # application.yml
 
