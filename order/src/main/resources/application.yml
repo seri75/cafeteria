@@ -76,7 +76,7 @@ feign:
     payment:
       url: http://payment:8080
   hystrix:
-    enabled: true
+    enabled: false 
 
 #hystrix:
 #  command:

@@ -8,7 +8,9 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
 
 import cafeteria.config.kafka.KafkaProcessor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 public class PolicyHandler{
 	
@@ -24,7 +26,7 @@ public class PolicyHandler{
     public void wheneverOrdered_(@Payload Ordered ordered){
 
         if(ordered.isMe()){
-            System.out.println("##### listener  : " + ordered.toJson());
+            log.info("##### listener  : " + ordered.toJson());
             
             List<Drink> drinks = drinkRepository.findByOrderId(ordered.getId());
             for(Drink drink : drinks) {
@@ -42,7 +44,7 @@ public class PolicyHandler{
     public void wheneverPaymentApproved_(@Payload PaymentApproved paymentApproved){
 
         if(paymentApproved.isMe()){
-            System.out.println("##### listener  : " + paymentApproved.toJson());
+            log.info("##### listener  : " + paymentApproved.toJson());
             
             Drink drink = new Drink();
             drink.setOrderId(paymentApproved.getOrderId());
