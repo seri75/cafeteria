@@ -1009,16 +1009,7 @@ spec:
 
 ## 셀프힐링
 livenessProbe를 설정하여 문제가 있을 경우 스스로 재기동 되도록 한다.
-```
-        livenessProbe:
-          httpGet:
-            path: '/actuator/health'
-            port: 8080
-          initialDelaySeconds: 120
-          timeoutSeconds: 2
-          periodSeconds: 5
-          failureThreshold: 5
-	  
+```	  
 # mongodb down
 $ helm delete my-mongodb --namespace mongodb
 release "my-mongodb" uninstalled
@@ -1059,14 +1050,14 @@ customercenter-7f57cf5f9f-csp2b   1/1     Running   1          20h
 ## CI/CD 설정
 
 
-각 구현체들은 각자의 source repository 에 구성되었고, 사용한 CI/CD 플랫폼은 AWS를 사용하였으며, pipeline build script 는 각 프로젝트 폴더 이하에 buildspec.yml 에 포함되었다.
+각 구현체들은 각자의 source repository 에 구성되었고, 사용한 CI/CD 플랫폼은 AWS를 사용하였으며, pipeline build script 는 각 프로젝트 폴더 아래에 buildspec.yml 에 포함되었다.
 
 
 ## 동기식 호출 / 서킷 브레이킹 / 장애격리
 
 * 서킷 브레이킹 프레임워크의 선택: Spring FeignClient + Hystrix 옵션을 사용하여 구현함
 
-시나리오는 단말앱(order)-->결제(payment) 시의 연결을 RESTful Request/Response 로 연동하여 구현이 되어있고, 결제 요청이 과도할 경우 CB 를 통하여 장애격리.
+시나리오는 단말앱(order)-->결제(payment) 호출 시의 연결을 RESTful Request/Response 로 연동하여 구현이 되어있고, 결제 요청이 과도할 경우 CB 를 통하여 장애격리.
 
 - Hystrix 를 설정:  요청처리 쓰레드에서 처리시간이 610 밀리가 넘어서기 시작하여 어느정도 유지되면 CB 회로가 닫히도록 (요청을 빠르게 실패처리, 차단) 설정
 ```
@@ -1129,20 +1120,62 @@ hystrix:
 
 - 결제서비스에 대한 replica 를 동적으로 늘려주도록 HPA 를 설정한다. 설정은 CPU 사용량이 15프로를 넘어서면 replica 를 10개까지 늘려준다:
 ```
-kubectl autoscale deploy payment --min=1 --max=10 --cpu-percent=15
+$ kubectl get pods
+NAME                              READY   STATUS    RESTARTS   AGE
+customercenter-7f57cf5f9f-csp2b   1/1     Running   1          20h
+drink-7cb565cb4-d2vwb             1/1     Running   0          37m
+gateway-5dd866cbb6-czww9          1/1     Running   0          3d1h
+order-595c9b45b9-xppbf            1/1     Running   0          36m
+payment-698bfbdf7f-vp5ft          1/1     Running   0          2m32s
+siege-5b99b44c9c-8qtpd            1/1     Running   0          3d1h
 
-kubectl get pods
-```
-![image](https://user-images.githubusercontent.com/75828964/106759802-80528d80-6676-11eb-9cbe-637498405ca7.png)
-```
-kubectl get hpa
-```
-![image](https://user-images.githubusercontent.com/75828964/106759813-834d7e00-6676-11eb-8ba4-c3fe183b91c7.png)
-```
-- CB 에서 했던 방식대로 워크로드를 2분 동안 걸어준다.
-```
-![image](https://user-images.githubusercontent.com/75828964/106760580-52217d80-6677-11eb-8e95-2c162d8b8b47.png)
 
+$ kubectl autoscale deploy payment --min=1 --max=10 --cpu-percent=15
+horizontalpodautoscaler.autoscaling/payment autoscaled
+
+$ kubectl get hpa
+NAME      REFERENCE            TARGETS   MINPODS   MAXPODS   REPLICAS   AGE
+payment   Deployment/payment   2%/15%    1         10        1          2m35s
+
+# CB 에서 했던 방식대로 워크로드를 2분 동안 걸어준다.
+
+# siege -c100 -t60s --content-type "application/json" 'http://order:8080/orders POST {"phoneNumber":"01087654321", "productName":"coffee", "qty":2, "amt":1000}'
+** SIEGE 4.0.4
+** Preparing 100 concurrent users for battle.
+The server is now under siege...siege aborted due to excessive socket failure; you
+can change the failure threshold in $HOME/.siegerc
+
+Transactions:                    626 hits
+Availability:                  35.79 %
+Elapsed time:                  52.29 secs
+Data transferred:               1.06 MB
+Response time:                  6.95 secs
+Transaction rate:              11.97 trans/sec
+Throughput:                     0.02 MB/sec
+Concurrency:                   83.23
+Successful transactions:         626
+Failed transactions:            1123
+Longest transaction:           30.08
+Shortest transaction:           0.00
+
+$ kubectl get pods
+NAME                              READY   STATUS    RESTARTS   AGE
+customercenter-7f57cf5f9f-csp2b   1/1     Running   3          21h
+drink-7cb565cb4-d2vwb             1/1     Running   0          97m
+gateway-5dd866cbb6-czww9          1/1     Running   0          3d2h
+order-595c9b45b9-xppbf            1/1     Running   1          96m
+payment-698bfbdf7f-2bc56          1/1     Running   0          2m55s
+payment-698bfbdf7f-bcmb9          1/1     Running   0          3m42s
+payment-698bfbdf7f-f5kf2          1/1     Running   0          3m42s
+payment-698bfbdf7f-kclfb          1/1     Running   0          2m55s
+payment-698bfbdf7f-vmcd4          1/1     Running   0          2m40s
+payment-698bfbdf7f-vp5ft          1/1     Running   0          62m
+payment-698bfbdf7f-wg769          1/1     Running   0          2m40s
+payment-698bfbdf7f-xbdqp          1/1     Running   0          2m40s
+payment-698bfbdf7f-z8trs          1/1     Running   0          2m55s
+payment-698bfbdf7f-z9hk7          1/1     Running   0          2m40s
+siege-5b99b44c9c-8qtpd            1/1     Running   0          3d2h
+```
 
 - 오토스케일이 어떻게 되고 있는지 모니터링을 걸어둔다:
 ```
@@ -1150,18 +1183,27 @@ kubectl get deploy payment -w
 ```
 - 어느정도 시간이 흐른 후 (약 30초) 스케일 아웃이 벌어지는 것을 확인할 수 있다:
 ```
-NAME        DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
-payment     1         1         1            1           17s
-payment     1         2         1            1           45s
-payment     1         4         1            1           1m
+NAME      READY   UP-TO-DATE   AVAILABLE   AGE
+payment   1/1     1            1           2m24s
+payment   1/4     1            1           3m12s
+payment   1/4     1            1           3m12s
+payment   1/4     1            1           3m12s
+payment   1/4     4            1           3m12s
+payment   1/8     4            1           3m12s
+payment   1/8     4            1           3m12s
+payment   1/8     4            1           3m12s
+payment   1/8     8            1           3m12s
+payment   1/10    8            1           3m28s
+payment   1/10    8            1           3m28s
+payment   1/10    8            1           3m28s
+payment   1/10    10           1           3m28s
+payment   2/10    10           2           5m17s
+payment   3/10    10           3           5m21s
+payment   4/10    10           4           5m23s
 :
 
-watch kubectl get pods
-```
-![image](https://user-images.githubusercontent.com/75828964/106760302-ff47c600-6676-11eb-8f6e-d82865e06642.png)
+# siege 의 로그를 보아도 전체적인 성공률이 높아진 것을 확인 할 수 있다. 
 
-- siege 의 로그를 보아도 전체적인 성공률이 높아진 것을 확인 할 수 있다. 
-```
 Transactions:		        5078 hits
 Availability:		       92.45 %
 Elapsed time:		       120 secs
@@ -1170,9 +1212,33 @@ Response time:		        5.60 secs
 Transaction rate:	       17.15 trans/sec
 Throughput:		        0.01 MB/sec
 Concurrency:		       96.02
+
 ```
 
 ## 모니터링
+모니터링을 위하여 monitor namespace에 Prometheus와 Grafana를 설치하였다.
+
+```
+$ kubectl get deploy -n monitor
+NAME                                  READY   UP-TO-DATE   AVAILABLE   AGE
+cafe-grafana                          1/1     1            1           2d
+cafe-kube-prometheus-stack-operator   1/1     1            1           2d
+cafe-kube-state-metrics               1/1     1            1           2d
+```
+grafana 접근을 위해서 grafana의 Service는 LoadBalancer로 생성하였다.
+```
+$ kubectl get svc -n monitor
+NAME                                      TYPE           CLUSTER-IP     EXTERNAL-IP    PORT(S)                      AGE
+alertmanager-operated                     ClusterIP      None           <none>         9093/TCP,9094/TCP,9094/UDP   2d
+cafe-grafana                              LoadBalancer   10.68.15.180   34.84.30.157   80:32120/TCP                 2d
+cafe-kube-prometheus-stack-alertmanager   ClusterIP      10.68.14.210   <none>         9093/TCP                     2d
+cafe-kube-prometheus-stack-operator       ClusterIP      10.68.3.201    <none>         443/TCP                      2d
+cafe-kube-prometheus-stack-prometheus     ClusterIP      10.68.6.110    <none>         9090/TCP                     2d
+cafe-kube-state-metrics                   ClusterIP      10.68.9.55     <none>         8080/TCP                     2d
+cafe-prometheus-node-exporter             ClusterIP      10.68.9.213    <none>         9100/TCP                     2d
+prometheus-operated                       ClusterIP      None           <none>         9090/TCP                     2d
+```
+![image](https://user-images.githubusercontent.com/75828964/108601830-00e8ec00-73e2-11eb-9180-7438d4a23014.png)
 
 ## 무정지 재배포
 
@@ -1196,7 +1262,7 @@ HTTP/1.1 201     0.70 secs:     207 bytes ==> POST http://localhost:8081/orders
 
 - 새버전으로의 배포 시작
 ```
-kubectl set image ...
+kubectl set image deployment/drink drink=beatific/order:v2
 ```
 
 - seige 의 화면으로 넘어가서 Availability 가 100% 미만으로 떨어졌는지 확인
