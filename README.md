@@ -179,7 +179,48 @@ public interface OrderRepository extends PagingAndSortingRepository<Order, Long>
 ![image](https://user-images.githubusercontent.com/75828964/106758091-7465cc00-6674-11eb-9df8-b93a08da3234.png)
 
 ## API Gateway
+API Gateway를 통하여 동일 진입점으로 진입하여 각 마이크로 서비스를 접근할 수 있다.
+외부에서 접근을 위하여 Gateway의 Service는 LoadBalancer Type으로 생성했다.
+
 ```
+# application.yml
+
+spring:
+  profiles: docker
+  cloud:
+    gateway:
+      routes:
+        - id: order
+          uri: http://order:8080
+          predicates:
+            - Path=/orders/** 
+        - id: payment
+          uri: http://payment:8080
+          predicates:
+            - Path=/payments/** 
+        - id: drink
+          uri: http://drink:8080
+          predicates:
+            - Path=/drinks/**,/orderinfos/**
+        - id: customercenter
+          uri: http://customercenter:8080
+          predicates:
+            - Path= /mypages/**
+
+# service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  labels:
+    app: gateway
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    app: gateway
 ```
 
 ## 폴리글랏 퍼시스턴스
@@ -688,5 +729,122 @@ Concurrency:		       96.02
 배포기간 동안 Availability 가 변화없기 때문에 무정지 재배포가 성공한 것으로 확인됨.
 
 ## Persistence Volum Claim
+서비스의 log를 persistence volum을 사용하여 재기동후에도 남아 있을 수 있도록 하였다.
+```
+
+# application.yml
+
+...
+server:
+  tomcat:
+    accesslog:
+      enabled: true
+      pattern:  '%h %l %u %t "%r" %s %bbyte %Dms'
+    basedir: /logs/drink
+
+logging:
+  path: /logs/drink
+  file:
+    max-history: 30
+  level:
+    org.springframework.cloud: debug
+
+# deployment.yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: drink
+  labels:
+    app: drink
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: drink
+  template:
+    metadata:
+      labels:
+        app: drink
+    spec:
+      containers:
+      - name: drink
+        image: beatific/drink:v1
+        ...
+        volumeMounts:
+        - name: logs
+          mountPath: /logs
+      volumes:
+      - name: logs
+        persistentVolumeClaim:
+          claimName: logs
+
+# pvc.yaml
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: logs
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+```
 
 ## ConfigMap / Secret
+docker 이미지를 똑같이 배포한 후 환경변수를 지정해서 사용핳 수 있도록 
+환경변수를 kubernets의 configmap과 secret을 사용하여 지정하였다.
+
+```
+# secret 생성
+kubectl create secret generic mongodb --from-literal=username=mongodb --from-literal=password=mongodb --namespace cafeteria
+
+# configmap.yaml
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mongodb
+  namespace: cafeteria
+data:
+  database: "cafeteria"
+  
+
+# application.yml
+
+spring:
+  data:
+    mongodb:
+      uri: mongodb://my-mongodb-0.my-mongodb-headless.mongodb.svc.cluster.local:27017,my-mongodb-1.my-mongodb-headless.mongodb.svc.cluster.local:27017
+      database: ${MONGODB_DATABASE}
+      username: ${MONGODB_USERNAME}
+      password: ${MONGODB_PASSWORD}
+
+#buildspec.yaml
+spec:
+containers:
+  - name: $_PROJECT_NAME
+    image: $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$_PROJECT_NAME:$CODEBUILD_RESOLVED_SOURCE_VERSION
+    ports:
+    - containerPort: 8080
+    env:
+    - name: SPRING_PROFILES_ACTIVE
+      value: "docker"
+    - name: MONGODB_DATABASE
+      valueFrom:
+	configMapKeyRef:
+	  name: mongodb
+	  key: database
+    - name: MONGODB_USERNAME
+      valueFrom:
+	secretKeyRef:
+	  name: mongodb
+	  key: username
+    - name: MONGODB_PASSWORD
+      valueFrom:
+	secretKeyRef:
+	  name: mongodb
+	  key: password
+```
