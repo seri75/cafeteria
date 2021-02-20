@@ -170,6 +170,10 @@ public interface OrderRepository extends PagingAndSortingRepository<Order, Long>
 ```
 ![image](https://user-images.githubusercontent.com/75828964/106758091-7465cc00-6674-11eb-9df8-b93a08da3234.png)
 
+## API Gateway
+```
+```
+
 ## 폴리글랏 퍼시스턴스
 
 고객센터(customercenter)는 RDB 보다는 Document DB / NoSQL 계열의 데이터베이스인 Mongo DB 를 사용하기로 하였다. 이를 위해 customercenter의 선언에는 @Entity 가 아닌 @Document로 변경 되었으며, 기존의 Entity Pattern 과 Repository Pattern 적용과 데이터베이스 제품의 설정 (application.yml)과 아래 채번기능 개발 만으로 MongoDB 에 부착시켰다
@@ -423,7 +427,7 @@ package cafeteria;
     }
 
 ```
-Replica를 추가했을 때 중복없이 수신할 수 있도록 서비스별 Kafka Group을 통일하였다
+Replica를 추가했을 때 중복없이 수신할 수 있도록 서비스별 Kafka Group을 동일하게 지정했다.
 ```
 ```
 실제 구현에서 카톡은 화면에 출력으로 대체하였다.
@@ -454,24 +458,6 @@ class KakaoServiceImpl extends KakaoService {
 
 ```
 
-# Saga Pattern(보상트랜잭션)
-
-음료 주문 취소는 바리스타가 음료 접수하기 전에만 취소가 가능하다.
-음료 주문 취소는 Saga Pattern으로 만들어져 있어 바리스타가 음료를 이미 접수하였을 경우 취소실패를 Event로 publish하고
-Order 서비스에서 취소실패 Event를 Subscribe하여 주문취소를 원복한다.
-```
-```
-
-CancelFailed Event는 Customercenter 서비스에서도 subscribe하여 카카오톡으로 취소된 내용을 전달한다.
-```
-```
-
-# CQRS(Meterialized View)
-Customer
-```
-```
-
-
 음료 시스템은 주문/결제와 완전히 분리되어있으며, 이벤트 수신에 따라 처리되기 때문에, 음료시스템이 유지보수로 인해 잠시 내려간 상태라도 주문을 받는데 문제가 없다:
 ```
 # 음료 서비스 (drink) 를 잠시 내려놓음
@@ -490,9 +476,28 @@ deployment.apps/drink created
 ```
 ![image](https://user-images.githubusercontent.com/75828964/106759161-c2c79a80-6675-11eb-9e08-cf98ec5b4fc2.png)
 
+## Saga Pattern(보상트랜잭션)
 
+음료 주문 취소는 바리스타가 음료 접수하기 전에만 취소가 가능하다.
+음료 주문 취소는 Saga Pattern으로 만들어져 있어 바리스타가 음료를 이미 접수하였을 경우 취소실패를 Event로 publish하고
+Order 서비스에서 취소실패 Event를 Subscribe하여 주문취소를 원복한다.
+```
+```
+
+CancelFailed Event는 Customercenter 서비스에서도 subscribe하여 카카오톡으로 취소된 내용을 전달한다.
+```
+```
+
+## CQRS(Meterialized View)
+CustomerCenter의 Mypage를 구현하여 Order 서비스, Payment 서비스, Drink 서비스의 데이터를 Composite서비스나 DB Join없이 조회할 수 있다.
+```
+```
 
 # 운영
+
+## Liveness, Readiness 설정
+
+## 셀프힐링
 
 ## CI/CD 설정
 
@@ -510,11 +515,25 @@ deployment.apps/drink created
 ```
 # application.yml
 
+feign:
+  hystrix:
+    enabled: false 
+
 hystrix:
   command:
-    # 전역설정
     default:
-      execution.isolation.thread.timeoutInMilliseconds: 610
+      execution:
+        isolation:
+          strategy: THREAD
+          thread:
+            timeoutInMilliseconds: 610         #설정 시간동안 처리 지연발생시 timeout and 설정한 fallback 로직 수행     
+      circuitBreaker:
+        requestVolumeThreshold: 20           # 설정수 값만큼 요청이 들어온 경우만 circut open 여부 결정 함
+        errorThresholdPercentage: 10        # requestVolumn값을 넘는 요청 중 설정 값이상 비율이 에러인 경우 circuit open
+        sleepWindowInMilliseconds: 5000    # 한번 오픈되면 얼마나 오픈할 것인지 
+      metrics:
+        rollingStats:
+          timeInMilliseconds: 10000   
 
 ```
 
@@ -596,6 +615,7 @@ Throughput:		        0.01 MB/sec
 Concurrency:		       96.02
 ```
 
+## 모니터링
 
 ## 무정지 재배포
 
@@ -657,3 +677,7 @@ Concurrency:		       96.02
 ```
 
 배포기간 동안 Availability 가 변화없기 때문에 무정지 재배포가 성공한 것으로 확인됨.
+
+## Persistence Volum Claim
+
+## ConfigMap, Secret
