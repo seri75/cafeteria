@@ -717,6 +717,7 @@ Transfer-Encoding: chunked
     "status": "PaymentApproved"
 }
 
+# 음료 상태 확인
 root@siege-5b99b44c9c-8qtpd:/# http http://drink:8080/drinks/5
 HTTP/1.1 200 
 Content-Type: application/hal+json;charset=UTF-8
