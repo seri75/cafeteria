@@ -315,42 +315,6 @@ spec:
 
 고객센터(customercenter)는 RDB 보다는 Document DB / NoSQL 계열의 데이터베이스인 Mongo DB 를 사용하기로 하였다. 이를 위해 customercenter의 선언에는 @Entity 가 아닌 @Document로 변경 되었으며, 기존의 Entity Pattern 과 Repository Pattern 적용과 데이터베이스 제품의 설정 (application.yml)과 아래 채번기능 개발 만으로 MongoDB 에 부착시켰다
 ```
-# application.yml
-
-spring:
-  data:
-    mongodb:
-      uri: mongodb://my-mongodb-0.my-mongodb-headless.mongodb.svc.cluster.local:27017,my-mongodb-1.my-mongodb-headless.mongodb.svc.cluster.local:27017
-      database: ${MONGODB_DATABASE}
-      username: ${MONGODB_USERNAME}
-      password: ${MONGODB_PASSWORD}
-
-#buildspec.yaml
-spec:
-containers:
-  - name: $_PROJECT_NAME
-    image: $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$_PROJECT_NAME:$CODEBUILD_RESOLVED_SOURCE_VERSION
-    ports:
-    - containerPort: 8080
-    env:
-    - name: SPRING_PROFILES_ACTIVE
-      value: "docker"
-    - name: MONGODB_DATABASE
-      valueFrom:
-	configMapKeyRef:
-	  name: mongodb
-	  key: database
-    - name: MONGODB_USERNAME
-      valueFrom:
-	secretKeyRef:
-	  name: mongodb
-	  key: username
-    - name: MONGODB_PASSWORD
-      valueFrom:
-	secretKeyRef:
-	  name: mongodb
-	  key: password
-
 #Mypage.scala
 
 @Document
