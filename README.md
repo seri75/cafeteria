@@ -41,14 +41,18 @@
 1. 성능
     1. 고객이 자주 확인할 수 있는 주문상태를 마이페이지(프론트엔드)에서 확인할 수 있어야 한다  CQRS
     1. 주문상태가 바뀔때마다 카톡 등으로 알림을 줄 수 있어야 한다  Event driven
+
 # 분석설계
+
 1. Event Storming 모델
 ![image](https://user-images.githubusercontent.com/75828964/108243412-685c2d00-7191-11eb-8c8b-04afcd150ee5.png)
 1. 헥사고날 아키텍처 다이어그램 도출
 ![image](https://user-images.githubusercontent.com/75828964/106765217-e8f03900-667b-11eb-8f19-10dc4756dc4b.png)
+
 # 구현:
 
-분석/설계 단계에서 도출된 헥사고날 아키텍처에 따라, 각 BC별로 대변되는 마이크로 서비스들을 스프링부트로 구현하였다. 구현한 각 서비스를 로컬에서 실행하는 방법은 아래와 같다 (각자의 포트넘버는 8081 ~ 808n 이다)
+분석/설계 단계에서 도출된 헥사고날 아키텍처에 따라, 각 BC별로 대변되는 마이크로 서비스들을 스프링부트로 구현하였다. 구현한 각 서비스를 로컬에서 실행하는 방법은 아래와 같다 (각자의 포트넘버는 8081 ~ 808n
+이다)
 
 ```
 cd order
@@ -336,9 +340,7 @@ public interface PaymentService {
 
     @PostPersist
     public void onPostPersist(){
-        Ordered ordered = new Ordered();
-        BeanUtils.copyProperties(this, ordered);
-        ordered.publishAfterCommit();
+        ...
 
         Payment payment = new Payment();
         payment.setOrderId(this.id);
@@ -421,6 +423,9 @@ package cafeteria;
     }
 
 ```
+Replica를 추가했을 때 중복없이 수신할 수 있도록 서비스별 Kafka Group을 통일하였다
+```
+```
 실제 구현에서 카톡은 화면에 출력으로 대체하였다.
   
 ```    
@@ -447,8 +452,25 @@ class KakaoServiceImpl extends KakaoService {
 	}
 }
 
-
 ```
+
+# Saga Pattern(보상트랜잭션)
+
+음료 주문 취소는 바리스타가 음료 접수하기 전에만 취소가 가능하다.
+음료 주문 취소는 Saga Pattern으로 만들어져 있어 바리스타가 음료를 이미 접수하였을 경우 취소실패를 Event로 publish하고
+Order 서비스에서 취소실패 Event를 Subscribe하여 주문취소를 원복한다.
+```
+```
+
+CancelFailed Event는 Customercenter 서비스에서도 subscribe하여 카카오톡으로 취소된 내용을 전달한다.
+```
+```
+
+# CQRS(Meterialized View)
+Customer
+```
+```
+
 
 음료 시스템은 주문/결제와 완전히 분리되어있으며, 이벤트 수신에 따라 처리되기 때문에, 음료시스템이 유지보수로 인해 잠시 내려간 상태라도 주문을 받는데 문제가 없다:
 ```
