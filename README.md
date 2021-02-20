@@ -245,6 +245,7 @@ Transfer-Encoding: chunked
     "qty": 3,
     "status": "Receipted"
 }
+
 # customercenter 서비스의 상태확인
 root@siege-5b99b44c9c-8qtpd:/# http http://customercenter:8080/mypages/search/findByPhoneNumber?phoneNumber="01012345678"
 HTTP/1.1 200 
