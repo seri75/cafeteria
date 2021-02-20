@@ -794,8 +794,8 @@ spec:
 ```
 
 ## ConfigMap / Secret
-docker 이미지를 똑같이 배포한 후 환경변수를 지정해서 사용핳 수 있도록 
-환경변수를 kubernets의 configmap과 secret을 사용하여 지정하였다.
+mongo db의 database이름과 username, password는 환경변수를 지정해서 사용핳 수 있도록 하였다.
+database 이름은 kubernetes의 configmap을 사용하였고 username, password는 secret을 사용하여 지정하였다.
 
 ```
 # secret 생성
