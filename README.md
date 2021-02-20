@@ -167,16 +167,102 @@ public interface OrderRepository extends PagingAndSortingRepository<Order, Long>
 - 적용 후 REST API 의 테스트
 ```
 # order 서비스의 주문처리
-```
-![image](https://user-images.githubusercontent.com/75828964/106757723-0e794480-6674-11eb-8c25-54579c0c6a78.png)
-```
+root@siege-5b99b44c9c-8qtpd:/# http http://order:8080/orders phoneNumber="01012345678" productName="coffee" qty=3 amt=5000
+HTTP/1.1 201 
+Content-Type: application/json;charset=UTF-8
+Date: Sat, 20 Feb 2021 14:20:20 GMT
+Location: http://order:8080/orders/1
+Transfer-Encoding: chunked
+{
+    "_links": {
+        "order": {
+            "href": "http://order:8080/orders/1"
+        },
+        "self": {
+            "href": "http://order:8080/orders/1"
+        }
+    },
+    "amt": 5000,
+    "createTime": "2021-02-20T14:20:17.783+0000",
+    "phoneNumber": "01012345678",
+    "productName": "coffee",
+    "qty": 3,
+    "status": "Ordered"
+}
+
+# payment 조회
+root@siege-5b99b44c9c-8qtpd:/# http http://payment:8080/payments/search/findByOrderId?orderId=1 
+HTTP/1.1 200 
+Content-Type: application/hal+json;charset=UTF-8
+Date: Sat, 20 Feb 2021 14:21:21 GMT
+Transfer-Encoding: chunked
+{
+    "_embedded": {
+        "payments": [
+            {
+                "_links": {
+                    "payment": {
+                        "href": "http://payment:8080/payments/1"
+                    },
+                    "self": {
+                        "href": "http://payment:8080/payments/1"
+                    }
+                },
+                "amt": 5000,
+                "createTime": "2021-02-20T14:20:19.020+0000",
+                "orderId": 1,
+                "phoneNumber": "01012345678",
+                "status": "PaymentApproved"
+            }
+        ]
+    },
+    "_links": {
+        "self": {
+            "href": "http://payment:8080/payments/search/findByOrderId?orderId=1"
+        }
+    }
+}
+
 # drink 서비스의 접수처리
-```
-![image](https://user-images.githubusercontent.com/75828964/106757953-4ed8c280-6674-11eb-8049-2b16ee71ed47.png)
-```
+root@siege-5b99b44c9c-8qtpd:/# http patch http://drink:8080/drinks/1 status="Receipted"
+HTTP/1.1 200 
+Content-Type: application/json;charset=UTF-8
+Date: Sat, 20 Feb 2021 14:32:03 GMT
+Transfer-Encoding: chunked
+{
+    "_links": {
+        "drink": {
+            "href": "http://drink:8080/drinks/1"
+        },
+        "self": {
+            "href": "http://drink:8080/drinks/1"
+        }
+    },
+    "createTime": "2021-02-20T14:29:13.533+0000",
+    "orderId": 1,
+    "phoneNumber": "01012345678",
+    "productName": "coffee",
+    "qty": 3,
+    "status": "Receipted"
+}
 # customercenter 서비스의 상태확인
+root@siege-5b99b44c9c-8qtpd:/# http http://customercenter:8080/mypages/search/findByPhoneNumber?phoneNumber="01012345678"
+HTTP/1.1 200 
+Content-Type: application/json;charset=UTF-8
+Date: Sat, 20 Feb 2021 14:36:15 GMT
+Transfer-Encoding: chunked
+[
+    {
+        "amt": 5000,
+        "id": 1,
+        "orderId": 1,
+        "phoneNumber": "01012345678",
+        "productName": "coffee",
+        "qty": 3,
+        "status": "Ordered"
+    }
+]
 ```
-![image](https://user-images.githubusercontent.com/75828964/106758091-7465cc00-6674-11eb-9df8-b93a08da3234.png)
 
 ## API Gateway
 API Gateway를 통하여 동일 진입점으로 진입하여 각 마이크로 서비스를 접근할 수 있다.
@@ -415,17 +501,51 @@ $ kubectl delete deploy payment
 deployment.apps "payment" deleted
 
 #주문처리
-```
-![image](https://user-images.githubusercontent.com/75828964/106758360-c4449300-6674-11eb-9d9c-4055219c3612.png)
-```
+
+root@siege-5b99b44c9c-8qtpd:/# http http://order:8080/orders phoneNumber="01012345679" productName="coffee" qty=3 amt=5000
+HTTP/1.1 500 
+Connection: close
+Content-Type: application/json;charset=UTF-8
+Date: Sat, 20 Feb 2021 14:39:23 GMT
+Transfer-Encoding: chunked
+{
+    "error": "Internal Server Error",
+    "message": "Could not commit JPA transaction; nested exception is javax.persistence.RollbackException: Error while committing the transaction",
+    "path": "/orders",
+    "status": 500,
+    "timestamp": "2021-02-20T14:39:23.185+0000"
+}
+
 #결제서비스 재기동
 $ kubectl apply -f deployment.yml
 deployment.apps/payment created
 
 #주문처리
-```
-![image](https://user-images.githubusercontent.com/75828964/106758565-0077f380-6675-11eb-9c61-c13da5183897.png)
 
+root@siege-5b99b44c9c-8qtpd:/# http http://order:8080/orders phoneNumber="01012345679" productName="coffee" qty=3 amt=5000
+HTTP/1.1 201 
+Content-Type: application/json;charset=UTF-8
+Date: Sat, 20 Feb 2021 14:51:42 GMT
+Location: http://order:8080/orders/6
+Transfer-Encoding: chunked
+
+{
+    "_links": {
+        "order": {
+            "href": "http://order:8080/orders/6"
+        },
+        "self": {
+            "href": "http://order:8080/orders/6"
+        }
+    },
+    "amt": 5000,
+    "createTime": "2021-02-20T14:51:40.580+0000",
+    "phoneNumber": "01012345679",
+    "productName": "coffee",
+    "qty": 3,
+    "status": "Ordered"
+}
+```
 - 또한 과도한 요청시에 서비스 장애가 도미노 처럼 벌어질 수 있다. (서킷브레이커, 폴백 처리는 운영단계에서 설명한다.)
 
 
@@ -461,7 +581,7 @@ package cafeteria;
 
 ...
 
-@StreamListener(KafkaProcessor.INPUT)
+    @StreamListener(KafkaProcessor.INPUT)
     public void wheneverPaymentApproved_(@Payload PaymentApproved paymentApproved){
 
         if(paymentApproved.isMe()){
@@ -514,16 +634,71 @@ $ kubectl delete deploy drink
 deployment.apps "drink" deleted
 
 #주문처리
-```
-![image](https://user-images.githubusercontent.com/75828964/106759046-9ca1fa80-6675-11eb-9782-9ba234c5747a.png)
-```
+root@siege-5b99b44c9c-8qtpd:/# http http://order:8080/orders phoneNumber="01012345679" productName="coffee" qty=3 amt=5000
+HTTP/1.1 201 
+Content-Type: application/json;charset=UTF-8
+Date: Sat, 20 Feb 2021 14:53:25 GMT
+Location: http://order:8080/orders/7
+Transfer-Encoding: chunked
+
+{
+    "_links": {
+        "order": {
+            "href": "http://order:8080/orders/7"
+        },
+        "self": {
+            "href": "http://order:8080/orders/7"
+        }
+    },
+    "amt": 5000,
+    "createTime": "2021-02-20T14:53:25.115+0000",
+    "phoneNumber": "01012345679",
+    "productName": "coffee",
+    "qty": 3,
+    "status": "Ordered"
+}
 #음료 서비스 기동
 kubectl apply -f deployment.yml
 deployment.apps/drink created
 
 #음료등록 확인
+
+root@siege-5b99b44c9c-8qtpd:/# http http://drink:8080/drinks/search/findByOrderId?orderId=7
+HTTP/1.1 200 
+Content-Type: application/hal+json;charset=UTF-8
+Date: Sat, 20 Feb 2021 14:54:14 GMT
+Transfer-Encoding: chunked
+
+{
+    "_embedded": {
+        "drinks": [
+            {
+                "_links": {
+                    "drink": {
+                        "href": "http://drink:8080/drinks/4"
+                    },
+                    "self": {
+                        "href": "http://drink:8080/drinks/4"
+                    }
+                },
+                "createTime": "2021-02-20T14:53:25.194+0000",
+                "orderId": 7,
+                "phoneNumber": "01012345679",
+                "productName": "coffee",
+                "qty": 3,
+                "status": "PaymentApproved"
+            }
+        ]
+    },
+    "_links": {
+        "self": {
+            "href": "http://drink:8080/drinks/search/findByOrderId?orderId=7"
+        }
+    }
+}
+
 ```
-![image](https://user-images.githubusercontent.com/75828964/106759161-c2c79a80-6675-11eb-9e08-cf98ec5b4fc2.png)
+
 
 ## Saga Pattern / 보상 트랜잭션
 
@@ -753,13 +928,62 @@ Your Order is already started. You cannot cancel!!
 ## CQRS / Meterialized View
 CustomerCenter의 Mypage를 구현하여 Order 서비스, Payment 서비스, Drink 서비스의 데이터를 Composite서비스나 DB Join없이 조회할 수 있다.
 ```
+root@siege-5b99b44c9c-8qtpd:/# http http://customercenter:8080/mypages/search/findByPhoneNumber?phoneNumber="01012345679"
+HTTP/1.1 200 
+Content-Type: application/json;charset=UTF-8
+Date: Sat, 20 Feb 2021 14:57:45 GMT
+Transfer-Encoding: chunked
+
+[
+    {
+        "amt": 5000,
+        "id": 4544,
+        "orderId": 4,
+        "phoneNumber": "01012345679",
+        "productName": "coffee",
+        "qty": 3,
+        "status": "Made"
+    },
+    {
+        "amt": 5000,
+        "id": 4545,
+        "orderId": 5,
+        "phoneNumber": "01012345679",
+        "productName": "coffee",
+        "qty": 3,
+        "status": "Ordered"
+    },
+    {
+        "amt": 5000,
+        "id": 4546,
+        "orderId": 6,
+        "phoneNumber": "01012345679",
+        "productName": "coffee",
+        "qty": 3,
+        "status": "Receipted"
+    },
+    {
+        "amt": 5000,
+        "id": 4547,
+        "orderId": 7,
+        "phoneNumber": "01012345679",
+        "productName": "coffee",
+        "qty": 3,
+        "status": "Ordered"
+    }
+]
+
 ```
 
 # 운영
 
 ## Liveness / Readiness 설정
+```
+```
 
 ## 셀프힐링
+```
+```
 
 ## CI/CD 설정
 
