@@ -309,6 +309,7 @@ spec:
   selector:
     app: gateway
 ```
+*** 외부 접근 호출 capture(order, payment, drink, customercenter 각각) ***
 
 ## 폴리글랏 퍼시스턴스
 
