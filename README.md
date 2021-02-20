@@ -978,11 +978,82 @@ Transfer-Encoding: chunked
 # 운영
 
 ## Liveness / Readiness 설정
+Pod 생성 시 준비되지 않은 상태에서 요청을 받아 오류가 발생하지 않도록 Readiness Probe와 Liveness Probe를 설정했다.
 ```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order
+  labels:
+    app: order
+spec:
+  ...
+        readinessProbe:
+          httpGet:
+            path: '/actuator/health'
+            port: 8080
+          initialDelaySeconds: 10 
+          timeoutSeconds: 2 
+          periodSeconds: 5 
+          failureThreshold: 10
+        livenessProbe:
+          httpGet:
+            path: '/actuator/health'
+            port: 8080
+          initialDelaySeconds: 120
+          timeoutSeconds: 2
+          periodSeconds: 5
+          failureThreshold: 5
+
 ```
 
 ## 셀프힐링
+livenessProbe를 설정하여 문제가 있을 경우 스스로 재기동 되도록 한다.
 ```
+        livenessProbe:
+          httpGet:
+            path: '/actuator/health'
+            port: 8080
+          initialDelaySeconds: 120
+          timeoutSeconds: 2
+          periodSeconds: 5
+          failureThreshold: 5
+	  
+# mongodb down
+$ helm delete my-mongodb --namespace mongodb
+release "my-mongodb" uninstalled
+
+# mongodb start
+$ helm install my-mongodb bitnami/mongodb --namespace mongodb -f values.yaml
+
+# mongodb를 사용하는 customercenter 서비스가 liveness에 실패하여 재기동하고 새롭게 시작한 mongo db에 접속한다. 
+
+$ kubectl describe pods customercenter-7f57cf5f9f-csp2b
+...
+Events:
+  Type     Reason     Age                   From     Message
+  ----     ------     ----                  ----     -------
+  Normal   Killing    12m (x2 over 6h21m)   kubelet  Container customercenter failed liveness probe, will be restarted
+  Normal   Pulling    12m (x3 over 20h)     kubelet  Pulling image "beatific/customercenter:v6"
+  Normal   Created    12m (x3 over 20h)     kubelet  Created container customercenter
+  Normal   Started    12m (x3 over 20h)     kubelet  Started container customercenter
+  Normal   Pulled     12m (x3 over 20h)     kubelet  Successfully pulled image "beatific/customercenter:v6"
+  Warning  Unhealthy  11m (x30 over 20h)    kubelet  Readiness probe failed: Get http://10.64.1.29:8080/actuator/health: dial tcp 10.64.1.29:8080: connect: connection refused
+  Warning  Unhealthy  11m (x17 over 6h21m)  kubelet  Readiness probe failed: Get http://10.64.1.29:8080/actuator/health: net/http: request canceled (Client.Timeout exceeded while awaiting headers)
+  Warning  Unhealthy  14s                   kubelet  Readiness probe failed: HTTP probe failed with statuscode: 503
+  Warning  Unhealthy  11s (x13 over 6h21m)  kubelet  Liveness probe failed: Get http://10.64.1.29:8080/actuator/health: net/http: request canceled (Client.Timeout exceeded while awaiting headers)
+  
+$ kubectl get pods -w
+NAME                              READY   STATUS    RESTARTS   AGE
+customercenter-7f57cf5f9f-csp2b   1/1     Running   0          20h
+drink-7cb565cb4-d2vwb             1/1     Running   0          59m
+gateway-5dd866cbb6-czww9          1/1     Running   0          3d1h
+order-595c9b45b9-xppbf            1/1     Running   0          58m
+payment-698bfbdf7f-vp5ft          1/1     Running   0          24m
+siege-5b99b44c9c-8qtpd            1/1     Running   0          3d1h
+customercenter-7f57cf5f9f-csp2b   0/1     Running   1          20h
+customercenter-7f57cf5f9f-csp2b   1/1     Running   1          20h
+
 ```
 
 ## CI/CD 설정
