@@ -532,10 +532,169 @@ deployment.apps/drink created
 음료 주문 취소는 Saga Pattern으로 만들어져 있어 바리스타가 음료를 이미 접수하였을 경우 취소실패를 Event로 publish하고
 Order 서비스에서 취소실패 Event를 Subscribe하여 주문취소를 원복한다.
 ```
+root@siege-5b99b44c9c-8qtpd:/# http http://order:8080/orders/5
+HTTP/1.1 200 
+Content-Type: application/hal+json;charset=UTF-8
+Date: Sat, 20 Feb 2021 08:58:19 GMT
+Transfer-Encoding: chunked
+{
+    "_links": {
+        "order": {
+            "href": "http://order:8080/orders/5"
+        },
+        "self": {
+            "href": "http://order:8080/orders/5"
+        }
+    },
+    "amt": 100,
+    "createTime": "2021-02-20T08:51:17.441+0000",
+    "phoneNumber": "01033132570",
+    "productName": "coffee",
+    "qty": 2,
+    "status": "Ordered"
+}
+
+root@siege-5b99b44c9c-8qtpd:/# http http://payment:8080/payments/search/findByOrderId?orderId=5
+HTTP/1.1 200 
+Content-Type: application/hal+json;charset=UTF-8
+Date: Sat, 20 Feb 2021 08:58:54 GMT
+Transfer-Encoding: chunked
+
+{
+    "_embedded": {
+        "payments": [
+            {
+                "_links": {
+                    "payment": {
+                        "href": "http://payment:8080/payments/5"
+                    },
+                    "self": {
+                        "href": "http://payment:8080/payments/5"
+                    }
+                },
+                "amt": 100,
+                "createTime": "2021-02-20T08:51:17.452+0000",
+                "orderId": 5,
+                "phoneNumber": "01033132570",
+                "status": "PaymentApproved"
+            }
+        ]
+    },
+    "_links": {
+        "self": {
+            "href": "http://payment:8080/payments/search/findByOrderId?orderId=5"
+        }
+    }
+}
+
+root@siege-5b99b44c9c-8qtpd:/# http http://drink:8080/drinks/search/findByOrderId?orderId=5                              
+HTTP/1.1 200 
+Content-Type: application/hal+json;charset=UTF-8
+Date: Sat, 20 Feb 2021 08:52:14 GMT
+Transfer-Encoding: chunked
+
+{
+    "_embedded": {
+        "drinks": [
+            {
+                "_links": {
+                    "drink": {
+                        "href": "http://drink:8080/drinks/5"
+                    },
+                    "self": {
+                        "href": "http://drink:8080/drinks/5"
+                    }
+                },
+                "createTime": "2021-02-20T08:51:17.515+0000",
+                "orderId": 5,
+                "phoneNumber": "01033132570",
+                "productName": "coffee",
+                "qty": 2,
+                "status": "PaymentApproved"
+            }
+        ]
+    },
+    "_links": {
+        "self": {
+            "href": "http://drink:8080/drinks/search/findByOrderId?orderId=5"
+        }
+    }
+}
+
+root@siege-5b99b44c9c-8qtpd:/# http patch http://drink:8080/drinks/5 status="Receipted"
+HTTP/1.1 200 
+Content-Type: application/json;charset=UTF-8
+Date: Sat, 20 Feb 2021 08:53:29 GMT
+Transfer-Encoding: chunked
+{
+    "_links": {
+        "drink": {
+            "href": "http://drink:8080/drinks/5"
+        },
+        "self": {
+            "href": "http://drink:8080/drinks/5"
+        }
+    },
+    "createTime": "2021-02-20T08:51:17.515+0000",
+    "orderId": 5,
+    "phoneNumber": "01033132570",
+    "productName": "coffee",
+    "qty": 2,
+    "status": "Receipted"
+}
+
+root@siege-5b99b44c9c-8qtpd:/# http patch http://order:8080/orders/5 status="OrderCanceled"
+HTTP/1.1 200 
+Content-Type: application/json;charset=UTF-8
+Date: Sat, 20 Feb 2021 08:54:29 GMT
+Transfer-Encoding: chunked
+{
+    "_links": {
+        "order": {
+            "href": "http://order:8080/orders/5"
+        },
+        "self": {
+            "href": "http://order:8080/orders/5"
+        }
+    },
+    "amt": 100,
+    "createTime": "2021-02-20T08:51:17.441+0000",
+    "phoneNumber": "01033132570",
+    "productName": "coffee",
+    "qty": 2,
+    "status": "OrderCanceled"
+}
+
+root@siege-5b99b44c9c-8qtpd:/# http http://order:8080/orders/5
+HTTP/1.1 200 
+Content-Type: application/hal+json;charset=UTF-8
+Date: Sat, 20 Feb 2021 09:07:49 GMT
+Transfer-Encoding: chunked
+
+{
+    "_links": {
+        "order": {
+            "href": "http://order:8080/orders/5"
+        },
+        "self": {
+            "href": "http://order:8080/orders/5"
+        }
+    },
+    "amt": 100,
+    "createTime": "2021-02-20T09:07:24.114+0000",
+    "phoneNumber": "01033132570",
+    "productName": "coffee",
+    "qty": 2,
+    "status": "Ordered"
+}
+
 ```
 
 CancelFailed Event는 Customercenter 서비스에서도 subscribe하여 카카오톡으로 취소된 내용을 전달한다.
 ```
+2021-02-20 09:08:42.668  INFO 1 --- [container-0-C-1] cafeteria.external.KakaoServiceImpl      :
+To. 01033132570
+Your Order is already started. You cannot cancel!!
 ```
 
 ## CQRS / Meterialized View
