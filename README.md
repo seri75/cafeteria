@@ -323,7 +323,7 @@ class Mypage {
   @Id
   @BeanProperty
   var id :Long = 0L
-  ...
+  :
 ```
 MongoDB는 Sequence가 지원되지 않아 별도 Collection을 통해서 id sequence를 생성했다.
 ```
@@ -364,17 +364,17 @@ def generateSequence (seqName :String) :Long = {
         
         val mypage :Mypage = new Mypage()
         mypage.id = generateSequence(Mypage.SEQUENCE_NAME)
-	...
+	:
 
 #pom.xml
 
 <dependencies>
-...
+:
     <dependency>
 	<groupId>org.springframework.boot</groupId>
 	<artifactId>spring-boot-starter-data-mongodb</artifactId>
     </dependency>
-...
+:
 </dependencies>
 
 ```
@@ -445,7 +445,7 @@ public interface PaymentService {
 
     @PostPersist
     public void onPostPersist(){
-        ...
+        :
 
         Payment payment = new Payment();
         payment.setOrderId(this.id);
@@ -529,7 +529,7 @@ package cafeteria;
 @Table(name="Payment")
 public class Payment {
 
- ...
+ :
     @PostPersist
     public void onPostPersist(){
         PaymentApproved paymentApproved = new PaymentApproved();
@@ -545,7 +545,7 @@ public class Payment {
 ```
 package cafeteria;
 
-...
+:
 
     @StreamListener(KafkaProcessor.INPUT)
     public void wheneverPaymentApproved_(@Payload PaymentApproved paymentApproved){
@@ -564,6 +564,15 @@ package cafeteria;
 ```
 Replica를 추가했을 때 중복없이 수신할 수 있도록 서비스별 Kafka Group을 동일하게 지정했다.
 ```
+spring:
+  cloud:
+    stream:
+      bindings:
+        event-in:
+          group: drink
+          destination: cafeteria
+          contentType: application/json
+        :
 ```
 실제 구현에서 카톡은 화면에 출력으로 대체하였다.
   
@@ -953,7 +962,7 @@ metadata:
   labels:
     app: order
 spec:
-  ...
+  :
         readinessProbe:
           httpGet:
             path: '/actuator/health'
@@ -986,7 +995,7 @@ $ helm install my-mongodb bitnami/mongodb --namespace mongodb -f values.yaml
 # mongodb를 사용하는 customercenter 서비스가 liveness에 실패하여 재기동하고 새롭게 시작한 mongo db에 접속한다. 
 
 $ kubectl describe pods customercenter-7f57cf5f9f-csp2b
-...
+:
 Events:
   Type     Reason     Age                   From     Message
   ----     ------     ----                  ----     -------
@@ -1058,7 +1067,7 @@ hystrix:
     @PrePersist
     public void onPrePersist(){  //결제이력을 저장한 후 적당한 시간 끌기
 
-        ...
+        :
         
         try {
             Thread.currentThread().sleep((long) (400 + Math.random() * 220));
@@ -1274,7 +1283,7 @@ Concurrency:		       96.02
 
 # application.yml
 
-...
+:
 server:
   tomcat:
     accesslog:
@@ -1310,7 +1319,7 @@ spec:
       containers:
       - name: drink
         image: beatific/drink:v1
-        ...
+        :
         volumeMounts:
         - name: logs
           mountPath: /logs
