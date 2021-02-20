@@ -6,15 +6,23 @@
   - [분석/설계](#분석설계)
   - [구현:](#구현-)
     - [DDD 의 적용](#ddd-의-적용)
+    - [API Gateway](#API-GATEWAY)
     - [폴리글랏 퍼시스턴스](#폴리글랏-퍼시스턴스)
     - [폴리글랏 프로그래밍](#폴리글랏-프로그래밍)
     - [동기식 호출 과 Fallback 처리](#동기식-호출-과-Fallback-처리)
     - [비동기식 호출 과 Eventual Consistency](#비동기식-호출--시간적-디커플링--장애격리--최종-eventual-일관성-테스트)
+    - [Saga Pattern / 보상 트랜잭션](#Saga-Pattern--보상-트랜잭션)
+    - [CQRS / Meterialized View](#CQRS--Meterialized-View)
   - [운영](#운영)
+    - [Liveness / Readiness 설정](#Liveness--Readiness-설정)
     - [CI/CD 설정](#cicd-설정)
+    - [셀프힐링](#셀프힐링)
     - [동기식 호출 / 서킷 브레이킹 / 장애격리](#동기식-호출--서킷-브레이킹--장애격리)
     - [오토스케일 아웃](#오토스케일-아웃)
     - [무정지 재배포](#무정지-재배포)
+    - [모니터링](#모니터링)
+    - [Persistence Volum Claim](#Persistence-Volum-Claim)
+    - [ConfigMap / Secret](#ConfigMap--Secret)
 
 # 서비스 시나리오
 
@@ -476,9 +484,10 @@ deployment.apps/drink created
 ```
 ![image](https://user-images.githubusercontent.com/75828964/106759161-c2c79a80-6675-11eb-9e08-cf98ec5b4fc2.png)
 
-## Saga Pattern(보상트랜잭션)
+## Saga Pattern / 보상 트랜잭션
 
 음료 주문 취소는 바리스타가 음료 접수하기 전에만 취소가 가능하다.
+음료 접수 후에 취소할 경우 보상트랜재션을 통하여 취소를 원복한다.
 음료 주문 취소는 Saga Pattern으로 만들어져 있어 바리스타가 음료를 이미 접수하였을 경우 취소실패를 Event로 publish하고
 Order 서비스에서 취소실패 Event를 Subscribe하여 주문취소를 원복한다.
 ```
@@ -488,14 +497,14 @@ CancelFailed Event는 Customercenter 서비스에서도 subscribe하여 카카�
 ```
 ```
 
-## CQRS(Meterialized View)
+## CQRS / Meterialized View
 CustomerCenter의 Mypage를 구현하여 Order 서비스, Payment 서비스, Drink 서비스의 데이터를 Composite서비스나 DB Join없이 조회할 수 있다.
 ```
 ```
 
 # 운영
 
-## Liveness, Readiness 설정
+## Liveness / Readiness 설정
 
 ## 셀프힐링
 
@@ -680,4 +689,4 @@ Concurrency:		       96.02
 
 ## Persistence Volum Claim
 
-## ConfigMap, Secret
+## ConfigMap / Secret
