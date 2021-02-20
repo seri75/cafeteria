@@ -1238,7 +1238,8 @@ cafe-kube-state-metrics                   ClusterIP      10.68.9.55     <none>  
 cafe-prometheus-node-exporter             ClusterIP      10.68.9.213    <none>         9100/TCP                     2d
 prometheus-operated                       ClusterIP      None           <none>         9090/TCP                     2d
 ```
-![image](https://user-images.githubusercontent.com/75828964/108601830-00e8ec00-73e2-11eb-9180-7438d4a23014.png)
+![image](https://user-images.githubusercontent.com/75828964/108602078-625d8a80-73e3-11eb-9517-486c2b5bd584.png)
+![image](https://user-images.githubusercontent.com/75828964/108602105-89b45780-73e3-11eb-9bdc-268c1f929511.png)
 
 ## 무정지 재배포
 
