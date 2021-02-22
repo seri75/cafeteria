@@ -308,6 +308,15 @@ spec:
       targetPort: 8080
   selector:
     app: gateway
+    
+$ kubectl get svc
+NAME             TYPE           CLUSTER-IP       EXTERNAL-IP                                                                  PORT(S)          AGE
+customercenter   ClusterIP      10.100.52.95     <none>                                                                       8080/TCP         9h
+drink            ClusterIP      10.100.136.6     <none>                                                                       8080/TCP         9h
+gateway          LoadBalancer   10.100.164.152   a6826d83b5c8e4f5dad7129c7cdf0ded-93964597.ap-northeast-2.elb.amazonaws.com   8080:30109/TCP   9h
+order            ClusterIP      10.100.197.15    <none>                                                                       8080/TCP         9h
+payment          ClusterIP      10.100.242.153   <none>                                                                       8080/TCP         9h
+
 ```
  - order  
 ![image](https://user-images.githubusercontent.com/76020485/108672134-e53a2e80-7524-11eb-8008-ebcfbd8e9cbe.PNG)
