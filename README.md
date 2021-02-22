@@ -1240,7 +1240,8 @@ HTTP/1.1 201     0.70 secs:     207 bytes ==> POST http://localhost:8081/orders
 
 - 새버전으로의 배포 시작
 ```
-kubectl set image deployment/drink drink=beatific/order:v2
+$ kubectl set image deployment/order order=496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/skteam04/order:v2
+deployment.apps/order image updated
 ```
 
 - seige 의 화면으로 넘어가서 Availability 가 100% 미만으로 떨어졌는지 확인
