@@ -1589,8 +1589,6 @@ containers:
     ports:
     - containerPort: 8080
     env:
-    - name: SPRING_PROFILES_ACTIVE
-      value: "docker"
     - name: MONGODB_DATABASE
       valueFrom:
 	configMapKeyRef:
