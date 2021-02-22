@@ -309,15 +309,7 @@ spec:
   selector:
     app: gateway
 ```
-
-- order  
-![image](https://user-images.githubusercontent.com/76020485/108672134-e53a2e80-7524-11eb-8008-ebcfbd8e9cbe.PNG)
-- payment  
-![image](https://user-images.githubusercontent.com/76020485/108672136-e5d2c500-7524-11eb-824e-4066bb87376b.PNG)
-- drink  
-![image](https://user-images.githubusercontent.com/76020485/108672138-e66b5b80-7524-11eb-9c27-cf2089f4ac08.PNG)
-- customercenter  
-![image](https://user-images.githubusercontent.com/76020485/108672131-e4a19800-7524-11eb-894e-832ed6519b53.PNG)
+*** 외부 접근 호출 capture(order, payment, drink, customercenter 각각) ***
 
 ## 폴리글랏 퍼시스턴스
 
@@ -1345,42 +1337,107 @@ HTTP/1.1 201     0.70 secs:     207 bytes ==> POST http://localhost:8081/orders
 ```
 
 - 새버전으로의 배포 시작
+
 ```
-$ kubectl set image deployment/order order=496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/skteam04/order:v2
+order version
+
+v1 : default version 
+v3 : circuit breaker version 
+v4 : default version
+v6 : graceful shutdown version
+```
+- 쿠버네티스가 성급하게 새로 올려진 서비스를 READY 상태로 인식하여 서비스 유입을 진행할 수 있기 때문에 이를 막기위해 Readiness Probe 를 설정 후 
+  이미지를 배포하는 중에 부하를 발생시킴
+```
+$ kubectl set image deployment/order order=496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/skteam04/order:v4
 deployment.apps/order image updated
 ```
-
-- seige 의 화면으로 넘어가서 Availability 가 100% 미만으로 떨어졌는지 확인
-```
-Transactions:		        3078 hits
-Availability:		       70.45 %
-Elapsed time:		       120 secs
-Data transferred:	        0.34 MB
-Response time:		        5.60 secs
-Transaction rate:	       17.15 trans/sec
-Throughput:		        0.01 MB/sec
-Concurrency:		       96.02
-
-```
-배포기간중 Availability 가 평소 100%에서 70% 대로 떨어지는 것을 확인. 원인은 쿠버네티스가 성급하게 새로 올려진 서비스를 READY 상태로 인식하여 서비스 유입을 진행한 것이기 때문. 이를 막기위해 Readiness Probe 를 설정함:
 
 ```
 # deployment.yaml 의 readiness probe 의 설정:
 
-
 kubectl apply -f kubernetes/deployment.yaml
+```
+- 재배포 한 후 Availability 확인:
+```
+root@siege-5b99b44c9c-ldf2l:/# siege -v -c100 -t60s --content-type "application/json" 'http://order:8080/orders POST {"phoneNumber":"01087654321", "productName":"coffee", "qty":2, "amt":1000}'
+** SIEGE 4.0.4
+** Preparing 100 concurrent users for battle.
+The server is now under siege...
+Lifting the server siege...
+Transactions:		        4300 hits
+Availability:		       99.79 %
+Elapsed time:		       59.08 secs
+Data transferred:	        1.33 MB
+Response time:		        1.05 secs
+Transaction rate:	       72.78 trans/sec
+Throughput:		        0.02 MB/sec
+Concurrency:		       76.67
+Successful transactions:        4300
+Failed transactions:	           9
+Longest transaction:	        4.07
+Shortest transaction:	        0.03
+```
+
+배포기간중 Availability 가 99.79% 대로 떨어지는 것을 확인. 원인은 쿠버네티스가 성급하게 기존 서비스의 처리 중 종료했기 때문. 이를 막기위해 Graceful Shutdown을 적용
+```
+# Graceful Shutdown 적용 
+public class TomcatGracefulShutdown implements TomcatConnectorCustomizer, ApplicationListener<ContextClosedEvent> {
+
+	private Integer waiting = 30; 
+	
+    private volatile Connector connector;
+
+    @Override
+    public void customize(Connector connector) {
+        this.connector = connector;
+    }
+
+    @Override
+    public void onApplicationEvent(ContextClosedEvent event) {
+        this.connector.pause();
+        Executor executor = this.connector.getProtocolHandler().getExecutor();
+        if (executor instanceof ThreadPoolExecutor) {
+            try {
+                ThreadPoolExecutor threadPoolExecutor = (ThreadPoolExecutor) executor;
+                threadPoolExecutor.shutdown();
+                if (!threadPoolExecutor.awaitTermination(waiting, TimeUnit.SECONDS)) {
+                    log.error("Tomcat thread pool did not shut down gracefully within {} seconds. Proceeding with forceful shutdown", waiting);
+
+                    threadPoolExecutor.shutdownNow();
+
+                    if (!threadPoolExecutor.awaitTermination(waiting, TimeUnit.SECONDS)) {
+                        log.error("Tomcat thread pool did not terminate");
+                    }
+                }
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+}
 ```
 
 - 동일한 시나리오로 재배포 한 후 Availability 확인:
 ```
-Transactions:		        3078 hits
-Availability:		       100 %
-Elapsed time:		       120 secs
-Data transferred:	        0.34 MB
-Response time:		        5.60 secs
-Transaction rate:	       17.15 trans/sec
-Throughput:		        0.01 MB/sec
-Concurrency:		       96.02
+root@siege-5b99b44c9c-ldf2l:/# siege -v -c100 -t60s --content-type "application/json" 'http://order:8080/orders POST {"phoneNumber":"01087654321", "productName":"coffee", "qty":2, "amt":1000}'
+** SIEGE 4.0.4
+** Preparing 100 concurrent users for battle.
+The server is now under siege...
+Lifting the server siege...
+Transactions:		        5261 hits
+Availability:		      100.00 %
+Elapsed time:		       59.28 secs
+Data transferred:	        1.62 MB
+Response time:		        1.09 secs
+Transaction rate:	       88.75 trans/sec
+Throughput:		        0.03 MB/sec
+Concurrency:		       97.08
+Successful transactions:        5261
+Failed transactions:	           0
+Longest transaction:	        7.52
+Shortest transaction:	        0.01
 
 ```
 
