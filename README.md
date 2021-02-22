@@ -310,13 +310,13 @@ spec:
     app: gateway
 ```
 
-- order
+- order  
 ![image](https://user-images.githubusercontent.com/76020485/108672134-e53a2e80-7524-11eb-8008-ebcfbd8e9cbe.PNG)
-- payment
+- payment  
 ![image](https://user-images.githubusercontent.com/76020485/108672136-e5d2c500-7524-11eb-824e-4066bb87376b.PNG)
-- drink
+- drink  
 ![image](https://user-images.githubusercontent.com/76020485/108672138-e66b5b80-7524-11eb-9c27-cf2089f4ac08.PNG)
-- customercenter
+- customercenter  
 ![image](https://user-images.githubusercontent.com/76020485/108672131-e4a19800-7524-11eb-894e-832ed6519b53.PNG)
 
 ## 폴리글랏 퍼시스턴스
