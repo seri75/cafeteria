@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: payment
-        image: beatific/payment:v2
+        image: 496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/skteam04/payment:v1 
         imagePullPolicy: Always
         ports:
         - containerPort: 8080

@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: customercenter 
-        image: beatific/customercenter:v6
+        image: 496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/skteam04/customercenter:v1 
         imagePullPolicy: Always
         ports:
         - containerPort: 8080

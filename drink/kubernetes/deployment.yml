@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: drink 
-        image: beatific/drink:v1
+        image: 496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/skteam04/drink:v1 
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
