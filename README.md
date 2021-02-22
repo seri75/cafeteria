@@ -16,7 +16,7 @@
   - [운영](#운영)
     - [Liveness / Readiness 설정](#Liveness--Readiness-설정)
     - [CI/CD 설정](#cicd-설정)
-    - [셀프힐링](#셀프힐링)
+    - [Self Healing](#Self-Healing)
     - [동기식 호출 / 서킷 브레이킹 / 장애격리](#동기식-호출--서킷-브레이킹--장애격리)
     - [오토스케일 아웃](#오토스케일-아웃)
     - [무정지 재배포](#무정지-재배포)
@@ -991,7 +991,7 @@ spec:
 
 ```
 
-## 셀프힐링
+## Self Healing
 livenessProbe를 설정하여 문제가 있을 경우 스스로 재기동 되도록 한다.
 ```	  
 # mongodb down
@@ -1061,7 +1061,7 @@ hystrix:
             timeoutInMilliseconds: 610         #설정 시간동안 처리 지연발생시 timeout and 설정한 fallback 로직 수행     
       circuitBreaker:
         requestVolumeThreshold: 20           # 설정수 값만큼 요청이 들어온 경우만 circut open 여부 결정 함
-        errorThresholdPercentage: 10        # requestVolumn값을 넘는 요청 중 설정 값이상 비율이 에러인 경우 circuit open
+        errorThresholdPercentage: 30        # requestVolumn값을 넘는 요청 중 설정 값이상 비율이 에러인 경우 circuit open
         sleepWindowInMilliseconds: 5000    # 한번 오픈되면 얼마나 오픈할 것인지 
       metrics:
         rollingStats:
@@ -1209,10 +1209,7 @@ java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
 java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
 ```
 
-- 운영시스템은 죽지 않고 지속적으로 CB 에 의하여 적절히 회로가 열림과 닫힘이 벌어지면서 자원을 보호하고 있음을 보여줌. 하지만, 63.55% 가 성공하였고, 46%가 실패했다는 것은 고객 사용성에 있어 좋지 않기 때문에 Retry 설정과 동적 Scale out (replica의 자동적 추가,HPA) 을 통하여 시스템을 확장 해주는 후속처리가 필요.
-
-- Retry 의 설정 (istio)
-- Availability 가 높아진 것을 확인 (siege)
+- 운영시스템은 죽지 않고 지속적으로 CB 에 의하여 적절히 회로가 열림과 닫힘이 벌어지면서 자원을 보호하고 있음을 보여줌. 하지만, 40% 가 성공하였고, 60%가 실패했다는 것은 고객 사용성에 있어 좋지 않기 때문에 Retry 설정과 동적 Scale out (replica의 자동적 추가,HPA) 을 통하여 시스템을 확장 해주는 후속처리가 필요.
 
 ### 오토스케일 아웃
 앞서 CB 는 시스템을 안정되게 운영할 수 있게 해줬지만 사용자의 요청을 100% 받아들여주지 못했기 때문에 이에 대한 보완책으로 자동화된 확장 기능을 적용하고자 한다. 
@@ -1237,7 +1234,7 @@ $ kubectl get hpa
 NAME      REFERENCE            TARGETS   MINPODS   MAXPODS   REPLICAS   AGE
 payment   Deployment/payment   2%/15%    1         10        1          2m35s
 
-# CB 에서 했던 방식대로 워크로드를 2분 동안 걸어준다.
+# CB 에서 했던 방식대로 워크로드를 1분 동안 걸어준다.
 
 root@siege-5b99b44c9c-ldf2l:/# siege -v -c100 -t60s --content-type "application/json" 'http://order:8080/orders POST {"phoneNumber":"01087654321", "productName":"coffee", "qty":2, "amt":1000}'
 ** SIEGE 4.0.4
@@ -1331,16 +1328,18 @@ prometheus-operated                       ClusterIP      None           <none>  
 
 - seige 로 배포작업 직전에 워크로드를 모니터링 함.
 ```
-siege -c100 -t120S -r10 --content-type "application/json" 'localhost:8081/orders POST {"phoneNumber": "01012345678","productName": "coffee","qty": 2,"amt": 1000}'
-
-** SIEGE 4.0.5
+# siege -v -c100 -t60s --content-type "application/json" 'http://order:8080/orders POST {"phoneNumber":"01087654321", "productName":"coffee", "qty":2, "amt":1000}'
+** SIEGE 4.0.4
 ** Preparing 100 concurrent users for battle.
 The server is now under siege...
-
-HTTP/1.1 201     0.68 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     0.68 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     0.70 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     0.70 secs:     207 bytes ==> POST http://localhost:8081/orders
+HTTP/1.1 201     0.20 secs:     321 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     0.34 secs:     321 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     0.39 secs:     321 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     0.38 secs:     321 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     0.40 secs:     321 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     0.40 secs:     321 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     0.40 secs:     321 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     0.41 secs:     321 bytes ==> POST http://order:8080/orders
 :
 
 ```
@@ -1355,8 +1354,7 @@ v3 : circuit breaker version
 v4 : default version
 v6 : graceful shutdown version
 ```
-- 쿠버네티스가 성급하게 새로 올려진 서비스를 READY 상태로 인식하여 서비스 유입을 진행할 수 있기 때문에 이를 막기위해 Readiness Probe 를 설정 후 
-  이미지를 배포하는 중에 부하를 발생시킴
+- 쿠버네티스가 성급하게 새로 올려진 서비스를 READY 상태로 인식하여 서비스 유입을 진행할 수 있기 때문에 이를 막기위해 Readiness Probe 를 설정하여 이미지를 배포
 ```
 $ kubectl set image deployment/order order=496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/skteam04/order:v4
 deployment.apps/order image updated
