@@ -308,6 +308,15 @@ spec:
       targetPort: 8080
   selector:
     app: gateway
+    
+$ kubectl get svc
+NAME             TYPE           CLUSTER-IP       EXTERNAL-IP                                                                  PORT(S)          AGE
+customercenter   ClusterIP      10.100.52.95     <none>                                                                       8080/TCP         9h
+drink            ClusterIP      10.100.136.6     <none>                                                                       8080/TCP         9h
+gateway          LoadBalancer   10.100.164.152   a6826d83b5c8e4f5dad7129c7cdf0ded-93964597.ap-northeast-2.elb.amazonaws.com   8080:30109/TCP   9h
+order            ClusterIP      10.100.197.15    <none>                                                                       8080/TCP         9h
+payment          ClusterIP      10.100.242.153   <none>                                                                       8080/TCP         9h
+
 ```
  - order  
 ![image](https://user-images.githubusercontent.com/76020485/108672134-e53a2e80-7524-11eb-8008-ebcfbd8e9cbe.PNG)
@@ -1034,8 +1043,13 @@ customercenter-7f57cf5f9f-csp2b   1/1     Running   1          20h
 ## CI/CD 설정
 
 
-각 구현체들은 각자의 source repository 에 구성되었고, 사용한 CI/CD 플랫폼은 AWS를 사용하였으며, pipeline build script 는 각 프로젝트 폴더 아래에 buildspec.yml 에 포함되었다.
+각 구현체들은 하나의 source repository 에 구성되었고, 사용한 CI/CD 플랫폼은 AWS를 사용하였으며, pipeline build script는 각 프로젝트 폴더 아래에 buildspec.yml 에 포함되었다.
 
+![image](https://user-images.githubusercontent.com/75828964/108723281-6adece00-7567-11eb-9616-82cff205f321.png)
+![image](https://user-images.githubusercontent.com/75828964/108723298-703c1880-7567-11eb-8912-c2c24c269b57.png)
+![image](https://user-images.githubusercontent.com/75828964/108723307-73370900-7567-11eb-8fda-cb13622e2b1e.png)
+![image](https://user-images.githubusercontent.com/75828964/108723317-76ca9000-7567-11eb-9dc2-0fe0765e8e3f.png)
+![image](https://user-images.githubusercontent.com/75828964/108723330-792cea00-7567-11eb-9065-09e6d73281fb.png)
 
 ## 동기식 호출 / 서킷 브레이킹 / 장애격리
 
@@ -1309,15 +1323,16 @@ cafe-kube-state-metrics               1/1     1            1           2d
 grafana 접근을 위해서 grafana의 Service는 LoadBalancer로 생성하였다.
 ```
 $ kubectl get svc -n monitor
-NAME                                      TYPE           CLUSTER-IP     EXTERNAL-IP    PORT(S)                      AGE
-alertmanager-operated                     ClusterIP      None           <none>         9093/TCP,9094/TCP,9094/UDP   2d
-cafe-grafana                              LoadBalancer   10.68.15.180   34.84.30.157   80:32120/TCP                 2d
-cafe-kube-prometheus-stack-alertmanager   ClusterIP      10.68.14.210   <none>         9093/TCP                     2d
-cafe-kube-prometheus-stack-operator       ClusterIP      10.68.3.201    <none>         443/TCP                      2d
-cafe-kube-prometheus-stack-prometheus     ClusterIP      10.68.6.110    <none>         9090/TCP                     2d
-cafe-kube-state-metrics                   ClusterIP      10.68.9.55     <none>         8080/TCP                     2d
-cafe-prometheus-node-exporter             ClusterIP      10.68.9.213    <none>         9100/TCP                     2d
-prometheus-operated                       ClusterIP      None           <none>         9090/TCP                     2d
+NAME                                      TYPE           CLUSTER-IP       EXTERNAL-IP                                                                    PORT(S)                      AGE
+alertmanager-operated                     ClusterIP      None             <none>                                                                         9093/TCP,9094/TCP,9094/UDP   9h
+cafe-grafana                              ClusterIP      10.100.179.228   <none>                                                                         80/TCP                       9h
+cafe-grafana-ex                           LoadBalancer   10.100.108.223   a9b197a76a33a439b93a3708952f6f9a-1551287323.ap-northeast-2.elb.amazonaws.com   80:31391/TCP                 9h
+cafe-kube-prometheus-stack-alertmanager   ClusterIP      10.100.15.211    <none>                                                                         9093/TCP                     9h
+cafe-kube-prometheus-stack-operator       ClusterIP      10.100.212.34    <none>                                                                         443/TCP                      9h
+cafe-kube-prometheus-stack-prometheus     ClusterIP      10.100.91.250    <none>                                                                         9090/TCP                     9h
+cafe-kube-state-metrics                   ClusterIP      10.100.91.69     <none>                                                                         8080/TCP                     9h
+cafe-prometheus-node-exporter             ClusterIP      10.100.16.9      <none>                                                                         9100/TCP                     9h
+prometheus-operated                       ClusterIP      None             <none>                                                                         9090/TCP                     9h
 ```
 ![image](https://user-images.githubusercontent.com/75828964/108602078-625d8a80-73e3-11eb-9517-486c2b5bd584.png)
 ![image](https://user-images.githubusercontent.com/75828964/108602105-89b45780-73e3-11eb-9bdc-268c1f929511.png)
