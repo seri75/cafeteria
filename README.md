@@ -893,7 +893,7 @@ Transfer-Encoding: chunked
 
 ```
 
-CancelFailed Event는 Customercenter 서비스에서도 subscribe하여 카카오톡으로 취소된 내용을 전달한다.
+CancelFailed Event는 Customercenter 서비스에서도 subscribe하여 카카오톡으로 취소 실패된 내용을 전달한다.
 ```
 2021-02-20 09:08:42.668  INFO 1 --- [container-0-C-1] cafeteria.external.KakaoServiceImpl      :
 To. 01033132570
