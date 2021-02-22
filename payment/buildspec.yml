@@ -27,7 +27,7 @@ phases:
     commands:
       - echo Build started on `date`
       - echo Building the Docker image...
-      - cd $_PRJECT_NAME && mvn package -Dmaven.test.skip=true
+      - cd $_PROJECT_NAME && mvn package -Dmaven.test.skip=true
       - docker build -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/skteam04/$_PROJECT_NAME:$CODEBUILD_RESOLVED_SOURCE_VERSION  .
   post_build:
     commands:
