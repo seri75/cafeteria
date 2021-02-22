@@ -1314,15 +1314,16 @@ cafe-kube-state-metrics               1/1     1            1           2d
 grafana 접근을 위해서 grafana의 Service는 LoadBalancer로 생성하였다.
 ```
 $ kubectl get svc -n monitor
-NAME                                      TYPE           CLUSTER-IP     EXTERNAL-IP    PORT(S)                      AGE
-alertmanager-operated                     ClusterIP      None           <none>         9093/TCP,9094/TCP,9094/UDP   2d
-cafe-grafana                              LoadBalancer   10.68.15.180   34.84.30.157   80:32120/TCP                 2d
-cafe-kube-prometheus-stack-alertmanager   ClusterIP      10.68.14.210   <none>         9093/TCP                     2d
-cafe-kube-prometheus-stack-operator       ClusterIP      10.68.3.201    <none>         443/TCP                      2d
-cafe-kube-prometheus-stack-prometheus     ClusterIP      10.68.6.110    <none>         9090/TCP                     2d
-cafe-kube-state-metrics                   ClusterIP      10.68.9.55     <none>         8080/TCP                     2d
-cafe-prometheus-node-exporter             ClusterIP      10.68.9.213    <none>         9100/TCP                     2d
-prometheus-operated                       ClusterIP      None           <none>         9090/TCP                     2d
+NAME                                      TYPE           CLUSTER-IP       EXTERNAL-IP                                                                    PORT(S)                      AGE
+alertmanager-operated                     ClusterIP      None             <none>                                                                         9093/TCP,9094/TCP,9094/UDP   9h
+cafe-grafana                              ClusterIP      10.100.179.228   <none>                                                                         80/TCP                       9h
+cafe-grafana-ex                           LoadBalancer   10.100.108.223   a9b197a76a33a439b93a3708952f6f9a-1551287323.ap-northeast-2.elb.amazonaws.com   80:31391/TCP                 9h
+cafe-kube-prometheus-stack-alertmanager   ClusterIP      10.100.15.211    <none>                                                                         9093/TCP                     9h
+cafe-kube-prometheus-stack-operator       ClusterIP      10.100.212.34    <none>                                                                         443/TCP                      9h
+cafe-kube-prometheus-stack-prometheus     ClusterIP      10.100.91.250    <none>                                                                         9090/TCP                     9h
+cafe-kube-state-metrics                   ClusterIP      10.100.91.69     <none>                                                                         8080/TCP                     9h
+cafe-prometheus-node-exporter             ClusterIP      10.100.16.9      <none>                                                                         9100/TCP                     9h
+prometheus-operated                       ClusterIP      None             <none>                                                                         9090/TCP                     9h
 ```
 ![image](https://user-images.githubusercontent.com/75828964/108602078-625d8a80-73e3-11eb-9517-486c2b5bd584.png)
 ![image](https://user-images.githubusercontent.com/75828964/108602105-89b45780-73e3-11eb-9bdc-268c1f929511.png)
