@@ -555,16 +555,18 @@ package cafeteria;
 :
 
     @StreamListener(KafkaProcessor.INPUT)
-    public void wheneverPaymentApproved_(@Payload PaymentApproved paymentApproved){
+    public void wheneverOrdered_(@Payload Ordered ordered){
 
-        if(paymentApproved.isMe()){
-            System.out.println("##### listener  : " + paymentApproved.toJson());
+        if(ordered.isMe()){
+            log.info("##### listener  : " + ordered.toJson());
             
-            Drink drink = new Drink();
-            drink.setOrderId(paymentApproved.getOrderId());
-            drink.setStatus(paymentApproved.getStatus());
-            drinkRepository.save(drink);
-            
+            List<Drink> drinks = drinkRepository.findByOrderId(ordered.getId());
+            for(Drink drink : drinks) {
+           	drink.setPhoneNumber(ordered.getPhoneNumber());
+            	drink.setProductName(ordered.getProductName());
+               	drink.setQty(ordered.getQty());
+               	drinkRepository.save(drink);
+            }
         }
     }
 
