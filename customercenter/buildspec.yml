@@ -78,6 +78,24 @@ phases:
                     image: $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/skteam04/$_PROJECT_NAME:$CODEBUILD_RESOLVED_SOURCE_VERSION
                     ports:
                       - containerPort: 8080
+                    env:
+                      - name: SPRING_PROFILES_ACTIVE
+                        value: "docker"
+                      - name: MONGODB_DATABASE
+                        valueFrom:
+                          configMapKeyRef:
+                            name: mongodb 
+                            key: database
+                      - name: MONGODB_USERNAME
+                        valueFrom:
+                          secretKeyRef:
+                            name: mongodb
+                            key: username
+                      - name: MONGODB_PASSWORD
+                        valueFrom:
+                          secretKeyRef:
+                            name: mongodb 
+                            key: password
                     readinessProbe:
                       httpGet:
                         path: /actuator/health

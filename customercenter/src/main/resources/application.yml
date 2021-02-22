@@ -1,7 +1,8 @@
-server:
-  port: 8080
----
+spring:
+  profiles:
+    active: docker
 
+---
 spring:
   profiles: default
   jpa:
