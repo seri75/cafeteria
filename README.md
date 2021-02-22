@@ -16,7 +16,7 @@
   - [운영](#운영)
     - [Liveness / Readiness 설정](#Liveness--Readiness-설정)
     - [CI/CD 설정](#cicd-설정)
-    - [셀프힐링](#셀프힐링)
+    - [Self Healing](#Self-Healing)
     - [동기식 호출 / 서킷 브레이킹 / 장애격리](#동기식-호출--서킷-브레이킹--장애격리)
     - [오토스케일 아웃](#오토스케일-아웃)
     - [무정지 재배포](#무정지-재배포)
@@ -55,7 +55,7 @@
 1. Event Storming 모델
 ![image](https://user-images.githubusercontent.com/75828964/108632009-19273c80-74b0-11eb-91d2-d0c2b23f647a.png)
 1. 헥사고날 아키텍처 다이어그램 도출
-![image](https://user-images.githubusercontent.com/75828964/106765217-e8f03900-667b-11eb-8f19-10dc4756dc4b.png)
+![image](https://user-images.githubusercontent.com/75828964/108683149-8e3c5580-7534-11eb-9d76-c09a3c79c744.png)
 
 # 구현:
 
@@ -309,7 +309,14 @@ spec:
   selector:
     app: gateway
 ```
-*** 외부 접근 호출 capture(order, payment, drink, customercenter 각각) ***
+ - order  
+![image](https://user-images.githubusercontent.com/76020485/108672134-e53a2e80-7524-11eb-8008-ebcfbd8e9cbe.PNG)
+ - payment  
+![image](https://user-images.githubusercontent.com/76020485/108672136-e5d2c500-7524-11eb-824e-4066bb87376b.PNG)
+ - drink  
+![image](https://user-images.githubusercontent.com/76020485/108672138-e66b5b80-7524-11eb-9c27-cf2089f4ac08.PNG)
+ - customercenter  
+![image](https://user-images.githubusercontent.com/76020485/108672131-e4a19800-7524-11eb-894e-832ed6519b53.PNG)
 
 ## 폴리글랏 퍼시스턴스
 
@@ -548,16 +555,18 @@ package cafeteria;
 :
 
     @StreamListener(KafkaProcessor.INPUT)
-    public void wheneverPaymentApproved_(@Payload PaymentApproved paymentApproved){
+    public void wheneverOrdered_(@Payload Ordered ordered){
 
-        if(paymentApproved.isMe()){
-            System.out.println("##### listener  : " + paymentApproved.toJson());
+        if(ordered.isMe()){
+            log.info("##### listener  : " + ordered.toJson());
             
-            Drink drink = new Drink();
-            drink.setOrderId(paymentApproved.getOrderId());
-            drink.setStatus(paymentApproved.getStatus());
-            drinkRepository.save(drink);
-            
+            List<Drink> drinks = drinkRepository.findByOrderId(ordered.getId());
+            for(Drink drink : drinks) {
+           	drink.setPhoneNumber(ordered.getPhoneNumber());
+            	drink.setProductName(ordered.getProductName());
+               	drink.setQty(ordered.getQty());
+               	drinkRepository.save(drink);
+            }
         }
     }
 
@@ -982,7 +991,7 @@ spec:
 
 ```
 
-## 셀프힐링
+## Self Healing
 livenessProbe를 설정하여 문제가 있을 경우 스스로 재기동 되도록 한다.
 ```	  
 # mongodb down
@@ -1052,7 +1061,7 @@ hystrix:
             timeoutInMilliseconds: 610         #설정 시간동안 처리 지연발생시 timeout and 설정한 fallback 로직 수행     
       circuitBreaker:
         requestVolumeThreshold: 20           # 설정수 값만큼 요청이 들어온 경우만 circut open 여부 결정 함
-        errorThresholdPercentage: 10        # requestVolumn값을 넘는 요청 중 설정 값이상 비율이 에러인 경우 circuit open
+        errorThresholdPercentage: 30        # requestVolumn값을 넘는 요청 중 설정 값이상 비율이 에러인 경우 circuit open
         sleepWindowInMilliseconds: 5000    # 한번 오픈되면 얼마나 오픈할 것인지 
       metrics:
         rollingStats:
@@ -1081,15 +1090,126 @@ hystrix:
 - 동시사용자 100명
 - 60초 동안 실시
 ```
-# siege -c100 -t60s --content-type "application/json" 'http://order:8080/orders POST {"phoneNumber":"01087654321", "productName":"coffee", "qty":2, "amt":1000}'
+
+root@siege-5b99b44c9c-ldf2l:/# siege -v -c100 -t60s --content-type "application/json" 'http://order:8080/orders POST {"phoneNumber":"01087654321", "productName":"coffee", "qty":2, "amt":1000}'
+** SIEGE 4.0.4
+** Preparing 100 concurrent users for battle.
+The server is now under siege...
+HTTP/1.1 500     2.52 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     2.53 secs:     317 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     2.54 secs:     317 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     2.55 secs:     317 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     2.54 secs:     317 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     2.53 secs:     317 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     2.56 secs:     319 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     2.56 secs:     317 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     2.58 secs:     317 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     2.60 secs:     317 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     2.95 secs:     319 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     3.02 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     3.00 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     3.03 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     3.02 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     3.04 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     3.13 secs:     319 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     3.12 secs:     319 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     3.14 secs:     319 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     3.20 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     3.24 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     3.27 secs:     319 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     3.30 secs:     319 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     3.30 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     3.28 secs:     319 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     3.31 secs:     319 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     3.41 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     3.41 secs:     319 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     3.43 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     3.45 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     3.48 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     3.47 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     3.49 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     3.53 secs:     319 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     3.66 secs:     319 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     3.70 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     3.76 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     3.78 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     3.77 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     3.92 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     4.02 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     4.05 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     4.10 secs:     319 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     4.11 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     4.14 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     4.14 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     4.12 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     4.13 secs:     319 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     4.14 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     4.21 secs:     319 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     4.27 secs:     319 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     4.27 secs:     319 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     4.26 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     4.34 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     0.95 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     4.36 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     4.47 secs:     319 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     4.60 secs:     319 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     0.51 secs:     319 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     4.73 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     4.78 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     4.82 secs:     319 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     4.92 secs:     319 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     4.91 secs:     319 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     4.94 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     5.01 secs:     319 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     0.90 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     5.07 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     5.07 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     5.10 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     5.10 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     5.12 secs:     248 bytes ==> POST http://order:8080/orders
+HTTP/1.1 500     5.12 secs:     248 bytes ==> POST http://order:8080/orders
+...
+Lifting the server siege...siege aborted due to excessive socket failure; you
+can change the failure threshold in $HOME/.siegerc
+
+Transactions:		         701 hits
+Availability:		       39.58 %
+Elapsed time:		       59.21 secs
+Data transferred:	        0.47 MB
+Response time:		        8.18 secs
+Transaction rate:	       11.84 trans/sec
+Throughput:		        0.01 MB/sec
+Concurrency:		       96.90
+Successful transactions:         701
+Failed transactions:	        1070
+Longest transaction:	        9.81
+Shortest transaction:	        0.05
 ```
-![image](https://user-images.githubusercontent.com/75828964/106759329-f9051a00-6675-11eb-93fa-daf7924d5718.png)
-![image](https://user-images.githubusercontent.com/75828964/106759337-fd313780-6675-11eb-90ac-e62f5fbc6648.png)
 
-- 운영시스템은 죽지 않고 지속적으로 CB 에 의하여 적절히 회로가 열림과 닫힘이 벌어지면서 자원을 보호하고 있음을 보여줌. 하지만, 63.55% 가 성공하였고, 46%가 실패했다는 것은 고객 사용성에 있어 좋지 않기 때문에 Retry 설정과 동적 Scale out (replica의 자동적 추가,HPA) 을 통하여 시스템을 확장 해주는 후속처리가 필요.
+- order 서비스의 로그를 확인하여 Circuit이 OPEN된 것을 확인한다.
+$ kubectl logs -f order-7ff9b5458-4wn28 | grep OPEN
+```
+java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
+java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
+java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
+java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
+java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
+java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
+java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
+java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
+java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
+java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
+java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
+java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
+java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
+java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
+java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
+java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
+java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
+java.lang.RuntimeException: Hystrix circuit short-circuited and is OPEN
+```
 
-- Retry 의 설정 (istio)
-- Availability 가 높아진 것을 확인 (siege)
+- 운영시스템은 죽지 않고 지속적으로 CB 에 의하여 적절히 회로가 열림과 닫힘이 벌어지면서 자원을 보호하고 있음을 보여줌. 하지만, 40% 가 성공하였고, 60%가 실패했다는 것은 고객 사용성에 있어 좋지 않기 때문에 Retry 설정과 동적 Scale out (replica의 자동적 추가,HPA) 을 통하여 시스템을 확장 해주는 후속처리가 필요.
 
 ### 오토스케일 아웃
 앞서 CB 는 시스템을 안정되게 운영할 수 있게 해줬지만 사용자의 요청을 100% 받아들여주지 못했기 때문에 이에 대한 보완책으로 자동화된 확장 기능을 적용하고자 한다. 
@@ -1114,44 +1234,32 @@ $ kubectl get hpa
 NAME      REFERENCE            TARGETS   MINPODS   MAXPODS   REPLICAS   AGE
 payment   Deployment/payment   2%/15%    1         10        1          2m35s
 
-# CB 에서 했던 방식대로 워크로드를 2분 동안 걸어준다.
+# CB 에서 했던 방식대로 워크로드를 1분 동안 걸어준다.
 
-# siege -c100 -t60s --content-type "application/json" 'http://order:8080/orders POST {"phoneNumber":"01087654321", "productName":"coffee", "qty":2, "amt":1000}'
+root@siege-5b99b44c9c-ldf2l:/# siege -v -c100 -t60s --content-type "application/json" 'http://order:8080/orders POST {"phoneNumber":"01087654321", "productName":"coffee", "qty":2, "amt":1000}'
 ** SIEGE 4.0.4
 ** Preparing 100 concurrent users for battle.
-The server is now under siege...siege aborted due to excessive socket failure; you
-can change the failure threshold in $HOME/.siegerc
-
-Transactions:                    626 hits
-Availability:                  35.79 %
-Elapsed time:                  52.29 secs
-Data transferred:               1.06 MB
-Response time:                  6.95 secs
-Transaction rate:              11.97 trans/sec
-Throughput:                     0.02 MB/sec
-Concurrency:                   83.23
-Successful transactions:         626
-Failed transactions:            1123
-Longest transaction:           30.08
-Shortest transaction:           0.00
+The server is now under siege...
 
 $ kubectl get pods
-NAME                              READY   STATUS    RESTARTS   AGE
-customercenter-7f57cf5f9f-csp2b   1/1     Running   3          21h
-drink-7cb565cb4-d2vwb             1/1     Running   0          97m
-gateway-5dd866cbb6-czww9          1/1     Running   0          3d2h
-order-595c9b45b9-xppbf            1/1     Running   1          96m
-payment-698bfbdf7f-2bc56          1/1     Running   0          2m55s
-payment-698bfbdf7f-bcmb9          1/1     Running   0          3m42s
-payment-698bfbdf7f-f5kf2          1/1     Running   0          3m42s
-payment-698bfbdf7f-kclfb          1/1     Running   0          2m55s
-payment-698bfbdf7f-vmcd4          1/1     Running   0          2m40s
-payment-698bfbdf7f-vp5ft          1/1     Running   0          62m
-payment-698bfbdf7f-wg769          1/1     Running   0          2m40s
-payment-698bfbdf7f-xbdqp          1/1     Running   0          2m40s
-payment-698bfbdf7f-z8trs          1/1     Running   0          2m55s
-payment-698bfbdf7f-z9hk7          1/1     Running   0          2m40s
-siege-5b99b44c9c-8qtpd            1/1     Running   0          3d2h
+NAME                              READY     STATUS    RESTARTS   AGE
+customercenter-59f4d6d897-lnpsh   1/1       Running   0          97m
+drink-64bc64d49c-sdwlb            1/1       Running   0          112m
+gateway-6dcdf4cb9-pghzz           1/1       Running   0          74m
+order-7ff9b5458-4wn28             1/1       Running   2          21m
+payment-6f75856f77-b6ctw          1/1       Running   0          118s
+payment-6f75856f77-f2l5m          1/1       Running   0          102s
+payment-6f75856f77-gl24n          1/1       Running   0          41m
+payment-6f75856f77-htkn5          1/1       Running   0          118s
+payment-6f75856f77-rplpb          1/1       Running   0          118s
+siege-5b99b44c9c-ldf2l            1/1       Running   0          96m
+```
+
+- HPA를 확인한다.
+```
+$ kubectl get hpa 
+NAME      REFERENCE            TARGETS   MINPODS   MAXPODS   REPLICAS   AGE
+payment   Deployment/payment   72%/15%   1         10        5          12m
 ```
 
 - 오토스케일이 어떻게 되고 있는지 모니터링을 걸어둔다:
@@ -1160,35 +1268,31 @@ kubectl get deploy payment -w
 ```
 - 어느정도 시간이 흐른 후 (약 30초) 스케일 아웃이 벌어지는 것을 확인할 수 있다:
 ```
-NAME      READY   UP-TO-DATE   AVAILABLE   AGE
-payment   1/1     1            1           2m24s
-payment   1/4     1            1           3m12s
-payment   1/4     1            1           3m12s
-payment   1/4     1            1           3m12s
-payment   1/4     4            1           3m12s
-payment   1/8     4            1           3m12s
-payment   1/8     4            1           3m12s
-payment   1/8     4            1           3m12s
-payment   1/8     8            1           3m12s
-payment   1/10    8            1           3m28s
-payment   1/10    8            1           3m28s
-payment   1/10    8            1           3m28s
-payment   1/10    10           1           3m28s
-payment   2/10    10           2           5m17s
-payment   3/10    10           3           5m21s
-payment   4/10    10           4           5m23s
-:
+NAME      DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
+payment   1         1         1         1         1h
+payment   4         1         1         1         1h
+payment   4         1         1         1         1h
+payment   4         1         1         1         1h
+payment   4         4         4         1         1h
+payment   5         4         4         1         1h
+payment   5         4         4         1         1h
+payment   5         4         4         1         1h
+payment   5         5         5         1         1h
 
 # siege 의 로그를 보아도 전체적인 성공률이 높아진 것을 확인 할 수 있다. 
 
-Transactions:		        5078 hits
-Availability:		       92.45 %
-Elapsed time:		       120 secs
+Transactions:		         900 hits
+Availability:		       76.08 %
+Elapsed time:		       59.33 secs
 Data transferred:	        0.34 MB
-Response time:		        5.60 secs
-Transaction rate:	       17.15 trans/sec
+Response time:		        6.14 secs
+Transaction rate:	       15.17 trans/sec
 Throughput:		        0.01 MB/sec
-Concurrency:		       96.02
+Concurrency:		       93.08
+Successful transactions:         900
+Failed transactions:	         283
+Longest transaction:	       14.41
+Shortest transaction:	        0.04
 
 ```
 
@@ -1224,56 +1328,123 @@ prometheus-operated                       ClusterIP      None           <none>  
 
 - seige 로 배포작업 직전에 워크로드를 모니터링 함.
 ```
-siege -c100 -t120S -r10 --content-type "application/json" 'localhost:8081/orders POST {"phoneNumber": "01012345678","productName": "coffee","qty": 2,"amt": 1000}'
-
-** SIEGE 4.0.5
+# siege -v -c100 -t60s --content-type "application/json" 'http://order:8080/orders POST {"phoneNumber":"01087654321", "productName":"coffee", "qty":2, "amt":1000}'
+** SIEGE 4.0.4
 ** Preparing 100 concurrent users for battle.
 The server is now under siege...
-
-HTTP/1.1 201     0.68 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     0.68 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     0.70 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     0.70 secs:     207 bytes ==> POST http://localhost:8081/orders
+HTTP/1.1 201     0.20 secs:     321 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     0.34 secs:     321 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     0.39 secs:     321 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     0.38 secs:     321 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     0.40 secs:     321 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     0.40 secs:     321 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     0.40 secs:     321 bytes ==> POST http://order:8080/orders
+HTTP/1.1 201     0.41 secs:     321 bytes ==> POST http://order:8080/orders
 :
 
 ```
 
 - 새버전으로의 배포 시작
-```
-kubectl set image deployment/drink drink=beatific/order:v2
-```
-
-- seige 의 화면으로 넘어가서 Availability 가 100% 미만으로 떨어졌는지 확인
-```
-Transactions:		        3078 hits
-Availability:		       70.45 %
-Elapsed time:		       120 secs
-Data transferred:	        0.34 MB
-Response time:		        5.60 secs
-Transaction rate:	       17.15 trans/sec
-Throughput:		        0.01 MB/sec
-Concurrency:		       96.02
 
 ```
-배포기간중 Availability 가 평소 100%에서 70% 대로 떨어지는 것을 확인. 원인은 쿠버네티스가 성급하게 새로 올려진 서비스를 READY 상태로 인식하여 서비스 유입을 진행한 것이기 때문. 이를 막기위해 Readiness Probe 를 설정함:
+order version
+
+v1 : default version 
+v3 : circuit breaker version 
+v4 : default version
+v6 : graceful shutdown version
+```
+- 쿠버네티스가 성급하게 새로 올려진 서비스를 READY 상태로 인식하여 서비스 유입을 진행할 수 있기 때문에 이를 막기위해 Readiness Probe 를 설정하여 이미지를 배포
+```
+$ kubectl set image deployment/order order=496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/skteam04/order:v4
+deployment.apps/order image updated
+```
 
 ```
 # deployment.yaml 의 readiness probe 의 설정:
 
-
 kubectl apply -f kubernetes/deployment.yaml
+```
+- 재배포 한 후 Availability 확인:
+```
+root@siege-5b99b44c9c-ldf2l:/# siege -v -c100 -t60s --content-type "application/json" 'http://order:8080/orders POST {"phoneNumber":"01087654321", "productName":"coffee", "qty":2, "amt":1000}'
+** SIEGE 4.0.4
+** Preparing 100 concurrent users for battle.
+The server is now under siege...
+Lifting the server siege...
+Transactions:		        4300 hits
+Availability:		       99.79 %
+Elapsed time:		       59.08 secs
+Data transferred:	        1.33 MB
+Response time:		        1.05 secs
+Transaction rate:	       72.78 trans/sec
+Throughput:		        0.02 MB/sec
+Concurrency:		       76.67
+Successful transactions:        4300
+Failed transactions:	           9
+Longest transaction:	        4.07
+Shortest transaction:	        0.03
+```
+
+배포기간중 Availability 가 99.79% 대로 떨어지는 것을 확인. 원인은 쿠버네티스가 성급하게 기존 서비스의 처리 중 종료했기 때문. 이를 막기위해 Graceful Shutdown을 적용
+```
+# Graceful Shutdown 적용 
+public class TomcatGracefulShutdown implements TomcatConnectorCustomizer, ApplicationListener<ContextClosedEvent> {
+
+	private Integer waiting = 30; 
+	
+    private volatile Connector connector;
+
+    @Override
+    public void customize(Connector connector) {
+        this.connector = connector;
+    }
+
+    @Override
+    public void onApplicationEvent(ContextClosedEvent event) {
+        this.connector.pause();
+        Executor executor = this.connector.getProtocolHandler().getExecutor();
+        if (executor instanceof ThreadPoolExecutor) {
+            try {
+                ThreadPoolExecutor threadPoolExecutor = (ThreadPoolExecutor) executor;
+                threadPoolExecutor.shutdown();
+                if (!threadPoolExecutor.awaitTermination(waiting, TimeUnit.SECONDS)) {
+                    log.error("Tomcat thread pool did not shut down gracefully within {} seconds. Proceeding with forceful shutdown", waiting);
+
+                    threadPoolExecutor.shutdownNow();
+
+                    if (!threadPoolExecutor.awaitTermination(waiting, TimeUnit.SECONDS)) {
+                        log.error("Tomcat thread pool did not terminate");
+                    }
+                }
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+}
 ```
 
 - 동일한 시나리오로 재배포 한 후 Availability 확인:
 ```
-Transactions:		        3078 hits
-Availability:		       100 %
-Elapsed time:		       120 secs
-Data transferred:	        0.34 MB
-Response time:		        5.60 secs
-Transaction rate:	       17.15 trans/sec
-Throughput:		        0.01 MB/sec
-Concurrency:		       96.02
+root@siege-5b99b44c9c-ldf2l:/# siege -v -c100 -t60s --content-type "application/json" 'http://order:8080/orders POST {"phoneNumber":"01087654321", "productName":"coffee", "qty":2, "amt":1000}'
+** SIEGE 4.0.4
+** Preparing 100 concurrent users for battle.
+The server is now under siege...
+Lifting the server siege...
+Transactions:		        5261 hits
+Availability:		      100.00 %
+Elapsed time:		       59.28 secs
+Data transferred:	        1.62 MB
+Response time:		        1.09 secs
+Transaction rate:	       88.75 trans/sec
+Throughput:		        0.03 MB/sec
+Concurrency:		       97.08
+Successful transactions:        5261
+Failed transactions:	           0
+Longest transaction:	        7.52
+Shortest transaction:	        0.01
 
 ```
 
