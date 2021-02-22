@@ -1262,6 +1262,13 @@ payment-6f75856f77-rplpb          1/1       Running   0          118s
 siege-5b99b44c9c-ldf2l            1/1       Running   0          96m
 ```
 
+- HPA를 확인한다.
+```
+$ kubectl get hpa 
+NAME      REFERENCE            TARGETS   MINPODS   MAXPODS   REPLICAS   AGE
+payment   Deployment/payment   72%/15%   1         10        1          12m
+```
+
 - 오토스케일이 어떻게 되고 있는지 모니터링을 걸어둔다:
 ```
 kubectl get deploy payment -w
