@@ -71,6 +71,9 @@ mvn spring-boot:run
 cd payment
 mvn spring-boot:run 
 
+cd sale
+mvn spring-boot:run 
+
 cd drink
 mvn spring-boot:run  
 
@@ -83,34 +86,25 @@ mvn spring-boot:run
 - 각 서비스내에 도출된 핵심 Aggregate Root 객체를 Entity 로 선언하였다
 
 ```
+
 package cafeteria;
 
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.PostPersist;
-import javax.persistence.PostUpdate;
 import javax.persistence.Table;
 
-import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-
-import cafeteria.external.Payment;
-import cafeteria.external.PaymentService;
-
 @Entity
-@Table(name="ORDER_MANAGEMENT")
-public class Order {
+@Table(name="Sale_table")
+public class Sale {
 
     @Id
     @GeneratedValue(strategy=GenerationType.AUTO)
     private Long id;
     private String phoneNumber;
-    private String productName;
-    private Integer qty;
-    private Integer amt;
-    private String status = "Ordered";
+    private String yyyymm;
+    private Integer sumAmt;
 
     public Long getId() {
         return id;
@@ -119,52 +113,46 @@ public class Order {
     public void setId(Long id) {
         this.id = id;
     }
-    
     public String getPhoneNumber() {
-    	return phoneNumber;
+        return phoneNumber;
     }
+
     public void setPhoneNumber(String phoneNumber) {
-    	this.phoneNumber = phoneNumber;
+        this.phoneNumber = phoneNumber;
     }
-    
-    public String getProductName() {
-        return productName;
-    }
-
-    public void setProductName(String productName) {
-        this.productName = productName;
-    }
-    public Integer getQty() {
-        return qty;
+    public String getYyyymm() {
+        return yyyymm;
     }
 
-    public void setQty(Integer qty) {
-        this.qty = qty;
+    public void setYyyymm(String yyyymm) {
+        this.yyyymm = yyyymm;
     }
-    public Integer getAmt() {
-        return amt;
-    }
-
-    public void setAmt(Integer amt) {
-        this.amt = amt;
-    }
-    public String getStatus() {
-        return status;
+    public Integer getSumAmt() {
+        return sumAmt;
     }
 
-    public void setStatus(String status) {
-        this.status = status;
+    public void setSumAmt(Integer sumAmt) {
+        this.sumAmt = sumAmt;
     }
+
+}
+
 
 ```
 - Entity Pattern 과 Repository Pattern 을 적용하여 JPA 를 통하여 다양한 데이터소스 유형 (RDB or NoSQL) 에 대한 별도의 처리가 없도록 데이터 접근 어댑터를 자동 생성하기 위하여 Spring Data REST 의 RestRepository 를 적용하였다
 ```
 package cafeteria;
 
+import java.util.List;
+
 import org.springframework.data.repository.PagingAndSortingRepository;
 
-public interface OrderRepository extends PagingAndSortingRepository<Order, Long>{
+public interface SaleRepository extends PagingAndSortingRepository<Sale, Long>{
+
+	public List<Sale> findByPhoneNumberAndYyyymm(String phoneNumber, String yyyymm);
+
 }
+
 ```
 - 적용 후 REST API 의 테스트
 ```
@@ -287,6 +275,10 @@ spring:
           uri: http://payment:8080
           predicates:
             - Path=/payments/** 
+        - id: sale
+          uri: http://sale:8080
+          predicates:
+            - Path=/sales/** 
         - id: drink
           uri: http://drink:8080
           predicates:
@@ -331,69 +323,116 @@ payment          ClusterIP      10.100.242.153   <none>                         
 
 ## 폴리글랏 퍼시스턴스
 
-고객센터(customercenter)는 RDB 보다는 Document DB / NoSQL 계열의 데이터베이스인 Mongo DB 를 사용하기로 하였다. 이를 위해 customercenter의 선언에는 @Entity 가 아닌 @Document로 변경 되었으며, 기존의 Entity Pattern 과 Repository Pattern 적용과 데이터베이스 제품의 설정 (application.yml)과 아래 채번기능 개발 만으로 MongoDB 에 부착시켰다
+SalePage는 H2 DB를 사용하였고, 고객센터(customercenter)는 Mongo DB 를 사용하였다. 
+
 ```
-#Mypage.scala
+package cafeteria;
 
-@Document
-class Mypage {
-  
-  @Id
-  @BeanProperty
-  var id :Long = 0L
-  :
-```
-MongoDB는 Sequence가 지원되지 않아 별도 Collection을 통해서 id sequence를 생성했다.
-```
-# DatabseSequence.scala
-abstract class Sequence {
-  var seq :Long
-}
-case class InitialSequence(var seq : Long) extends Sequence
+import java.text.SimpleDateFormat;
+import java.util.List;
 
-@Document(collection = "database_sequences")
-class DatabaseSequence extends Sequence {
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cloud.stream.annotation.StreamListener;
+import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.stereotype.Service;
 
-  
-  @BeanProperty
-  @Id
-  var id: String = null
-  
-  @BeanProperty
-  var seq :Long = 0L
+import cafeteria.config.kafka.KafkaProcessor;
 
-}
+@Service
+public class SalePageViewHandler {
 
-# MypageViewHandler.scala
-
-def generateSequence (seqName :String) :Long = {
-    val query :Query = new Query(Criteria.where("_id").is(seqName));
-    val options :FindAndModifyOptions = new FindAndModifyOptions().returnNew(true).upsert(true)
-    val update :Update = new Update().inc("seq",1)
+    @Autowired
+    private SalePageRepository salePageRepository;
     
-    val sequence :Option[DatabaseSequence] = Option(mongoOperations.findAndModify(query, update, options, classOf[DatabaseSequence]))
-    sequence.getOrElse(InitialSequence(1L)).seq
+    @Autowired
+    private SaleRepository saleRepository;
+
+    @StreamListener(KafkaProcessor.INPUT)
+    public void whenPaymentApproved_then_CREATE_1 (@Payload PaymentApproved paymentApproved) {
+        try {
+            if (paymentApproved.isMe()) {
+                // view 객체 생성
+                SalePage page  = new SalePage();
+                // view 객체에 이벤트의 Value 를 set 함
+                page.setOrderId(paymentApproved.getOrderId());
+                page.setPhoneNumber(paymentApproved.getPhoneNumber());
+                page.setAmt(paymentApproved.getAmt());
+                
+                SimpleDateFormat yyyyMMFormat = new SimpleDateFormat("yyyyMM");
+
+                String yyyymm = yyyyMMFormat.format(paymentApproved.getCreateTime());
+                
+                page.setYyyymm(yyyymm);
+
+                List<Sale> sales = saleRepository.findByPhoneNumberAndYyyymm(paymentApproved.getPhoneNumber(), yyyymm);
+                Sale sale = sales.get(0);
+                
+                page.setSumAmt(sale.getSumAmt());
+                
+                // view 레파지 토리에 save
+                salePageRepository.save(page);
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+
+
+    @StreamListener(KafkaProcessor.INPUT)
+    public void whenOrdered_then_UPDATE_1(@Payload Ordered ordered) {
+        try {
+            if (ordered.isMe()) {
+                // view 객체 조회
+                List<SalePage> pages = salePageRepository.findByOrderId(ordered.getId());
+                for(SalePage page : pages){
+                    // view 객체에 이벤트의 eventDirectValue 를 set 함
+                	page.setProductName(ordered.getProductName());
+                    // view 레파지 토리에 save
+                	salePageRepository.save(page);
+                }
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+    
+    @StreamListener(KafkaProcessor.INPUT)
+    public void whenPaymentCanceled_then_UPDATE_2(@Payload PaymentCanceled paymentCanceled) {
+        try {
+            if (paymentCanceled.isMe()) {
+            	
+            	String yyyymm = paymentCanceled.getTimestamp().substring(0, 6);
+            	List<Sale> sales = saleRepository.findByPhoneNumberAndYyyymm(paymentCanceled.getPhoneNumber(), yyyymm);
+                
+            	if(sales.size() !=  1) throw new RuntimeException("There is not exacted[" + yyyymm + " / " + paymentCanceled.getPhoneNumber() + "]");
+            	Sale sale = sales.get(0);
+            	sale.setSumAmt(sale.getSumAmt() - paymentCanceled.getAmt());
+            	
+            	saleRepository.save(sale);
+                
+                // view 객체 조회
+            	List<SalePage> pages = salePageRepository.findByOrderId(paymentCanceled.getOrderId());
+            	
+            	SalePage beforePage = pages.get(0);
+            	
+            	SalePage page = new SalePage();
+            	page.setOrderId(paymentCanceled.getOrderId());
+            	page.setPhoneNumber(paymentCanceled.getPhoneNumber());
+            	page.setProductName(beforePage.getProductName());
+            	
+                page.setYyyymm(paymentCanceled.getTimestamp().substring(0, 6));
+
+                page.setSumAmt(sale.getSumAmt());
+                
+                salePageRepository.save(page);
+            	
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+
 }
-  
-  @StreamListener(KafkaProcessor.INPUT)
-  def whenOrdered_then_CREATE_1(@Payload ordered :Ordered) {
-    try {
-      if (ordered.isMe()) {
-        
-        val mypage :Mypage = new Mypage()
-        mypage.id = generateSequence(Mypage.SEQUENCE_NAME)
-	:
-
-#pom.xml
-
-<dependencies>
-:
-    <dependency>
-	<groupId>org.springframework.boot</groupId>
-	<artifactId>spring-boot-starter-data-mongodb</artifactId>
-    </dependency>
-:
-</dependencies>
 
 ```
 ## 폴리글랏 프로그래밍
@@ -434,11 +473,13 @@ class KakaoServiceImpl extends KakaoService {
 
 ## 동기식 호출 과 Fallback 처리
 
-분석단계에서의 조건 중 하나로 주문(order)->결제(payment) 간의 호출은 동기식 일관성을 유지하는 트랜잭션으로 처리하기로 하였다. 호출 프로토콜은 이미 앞서 Rest Repository 에 의해 노출되어있는 REST 서비스를 FeignClient 를 이용하여 호출하도록 한다. 
+결제(payment)->판매(sale) 간의 호출은 동기식 일관성을 유지하는 트랜잭션으로 처리하기로 하였다. 호출 프로토콜은 이미 앞서 Rest Repository 에 의해 노출되어있는 REST 서비스를 FeignClient 를 이용하여 호출하도록 한다. 
 
-- 결제서비스를 호출하기 위하여 Stub과 (FeignClient) 를 이용하여 Service 대행 인터페이스 (Proxy) 를 구현 
+- 판매 서비스를 호출하기 위하여 Stub과 (FeignClient) 를 이용하여 Service 대행 인터페이스 (Proxy) 를 구현 
 
 ```
+payment 서비스 수정후 반영 필요
+
 # (payment) PaymentService.java
 
 package cafeteria.external;
@@ -921,7 +962,7 @@ Your Order is already started. You cannot cancel!!
 ```
 
 ## CQRS / Meterialized View
-CustomerCenter의 Mypage를 구현하여 Order 서비스, Payment 서비스, Drink 서비스의 데이터를 Composite서비스나 DB Join없이 조회할 수 있다.
+Sale의 SalePage를 구현하여 Order 서비스, Payment 서비스, Sale 서비스의 데이터를 Composite서비스나 DB Join없이 조회할 수 있다.
 ```
 root@siege-5b99b44c9c-8qtpd:/# http http://customercenter:8080/mypages/search/findByPhoneNumber?phoneNumber="01012345679"
 HTTP/1.1 200 
