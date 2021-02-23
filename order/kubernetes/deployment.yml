@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: order
-        image: 496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/skteam04/order:v1
+        image: 496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/skteam04/order:1.0
         imagePullPolicy: Always
         ports:
         - containerPort: 8080

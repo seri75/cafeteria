@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Bean;
 
 import cafeteria.config.kafka.KafkaProcessor;
 import cafeteria.config.shutdown.TomcatGracefulShutdown;
+import feign.okhttp.OkHttpClient;
 
 
 @SpringBootApplication
@@ -25,8 +26,14 @@ public class OrderApplication {
 	    return factory;
 	}
     
+    @Bean
+    public OkHttpClient client() {
+        return new OkHttpClient();
+    } 
+    
     public static void main(String[] args) {
         applicationContext = SpringApplication.run(OrderApplication.class, args);
     }
 }
+
 

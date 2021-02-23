@@ -16,26 +16,26 @@ spec:
     spec:
       containers:
         - name: point
-          image: beatific/point:v1
+          image: 496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/skteam04/point:v2
           imagePullPolicy: Always
           ports:
-            - containerPort: 8080
+          - containerPort: 8080
           env:
           - name: MARIADB_DATABASE
             valueFrom:
               configMapKeyRef:
-	        name: mariadb
-	        key: database
+                name: mariadb
+                key: database
           - name: MARIADB_USERNAME
             valueFrom:
               secretKeyRef:
-	        name: mariadb
-	        key: username
+                name: mariadb
+                key: username
           - name: MARIADB_PASSWORD
             valueFrom:
               secretKeyRef:
-	        name: mariadb
-	        key: password
+                name: mariadb
+                key: password
           readinessProbe:
             httpGet:
               path: '/actuator/health'
