@@ -11,10 +11,10 @@ import javax.persistence.PostUpdate;
 import javax.persistence.Table;
 
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import cafeteria.external.Payment;
 import cafeteria.external.PaymentService;
+import cafeteria.external.PointService;
 
 @Entity
 @Table(name="ORDER_MANAGEMENT")
@@ -50,9 +50,12 @@ public class Order {
     public void onPostUpdate(){
         switch(this.status) {
     	case "OrderCanceled" : 
+    		
     		OrderCanceled orderCanceled = new OrderCanceled();
             BeanUtils.copyProperties(this, orderCanceled);
             orderCanceled.publishAfterCommit();
+            
+            OrderApplication.applicationContext.getBean(PointService.class).cancelPoint(orderCanceled);
             break;
     	}
 

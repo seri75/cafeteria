@@ -16,7 +16,7 @@ public class PointController {
 	private PointRepository pointRepository;
 	
 	@PatchMapping("/cancelPoint")
-	public Point cancelPoint(@RequestBody OrderCanceled orderCanceled) {
+	public void cancelPoint(@RequestBody OrderCanceled orderCanceled) {
 		List<Point> points = pointRepository.findByPhoneNumber(orderCanceled.getPhoneNumber());
 		int p = (int)(orderCanceled.getAmt() * 0.1);
 		Point point = points.get(0);
@@ -24,6 +24,5 @@ public class PointController {
 		
 		if(point.getPoint() < 0) throw new RuntimeException("Point is not enough.");
 		pointRepository.save(point);
-		return point;
     }
  }
