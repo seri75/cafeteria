@@ -43,13 +43,12 @@
 
 비기능적 요구사항
 1. 트랜잭션
-    1. 결제가 되지 않은 주문건은 아예 거래가 성립되지 않아야 한다.  Sync 호출
-    2. 주문이 취소되어도 바리스타가 접수하여 음료제조를 시작한 주문인 경우 주문 취소는 원복되어야 한다.  Saga(보상 트랜잭션)
+    1. 결제가 되지 않은 주문건은 판매 금액에 누적되지 않는다. Sync호출
 1. 장애격리
-    1. 음료제조 기능이 수행되지 않더라도 주문은 받을 수 있어야 한다.  Async (event-driven), Eventual Consistency
+    1. 결제가 취소처리가 완료 되면 누적된 판매 금액이 취소된다Async (event-driven), Eventual Consistency
     1. 결제시스템이 과중되면 사용자를 잠시동안 받지 않고 결제를 잠시후에 하도록 유도한다.  Circuit breaker, fallback
 1. 성능
-    1. 고객이 자주 확인할 수 있는 주문상태를 마이페이지(프론트엔드)에서 확인할 수 있어야 한다.  CQRS
+    1. 고객이 판매된 누적 금액을 세일즈페이지(프론트엔드)에서 확인할 수 있어야 한다. CQRS
     1. 주문상태가 바뀔때마다 카톡 등으로 알림을 줄 수 있어야 한다.  Event driven
 
 # 분석설계
@@ -180,7 +179,7 @@ Transfer-Encoding: chunked
     "status": "Ordered"
 }
 
-# payment 조회
+# payment 등록
 root@siege-5b99b44c9c-8qtpd:/# http http://payment:8080/payments/search/findByOrderId?orderId=1 
 HTTP/1.1 200 
 Content-Type: application/hal+json;charset=UTF-8
@@ -213,7 +212,7 @@ Transfer-Encoding: chunked
     }
 }
 
-# drink 서비스의 접수처리
+# sale 서비스의 등록처리
 root@siege-5b99b44c9c-8qtpd:/# http patch http://drink:8080/drinks/1 status="Receipted"
 HTTP/1.1 200 
 Content-Type: application/json;charset=UTF-8
@@ -236,7 +235,7 @@ Transfer-Encoding: chunked
     "status": "Receipted"
 }
 
-# customercenter 서비스의 상태확인
+# salepage 서비스의 조회
 root@siege-5b99b44c9c-8qtpd:/# http http://customercenter:8080/mypages/search/findByPhoneNumber?phoneNumber="01012345678"
 HTTP/1.1 200 
 Content-Type: application/json;charset=UTF-8
@@ -310,20 +309,15 @@ drink            ClusterIP      10.100.136.6     <none>                         
 gateway          LoadBalancer   10.100.164.152   a6826d83b5c8e4f5dad7129c7cdf0ded-93964597.ap-northeast-2.elb.amazonaws.com   8080:30109/TCP   9h
 order            ClusterIP      10.100.197.15    <none>                                                                       8080/TCP         9h
 payment          ClusterIP      10.100.242.153   <none>                                                                       8080/TCP         9h
+sale             ClusterIP      ????             <none>                                                                       8080/TCP         9h
 
 ```
- - order  
-![image](https://user-images.githubusercontent.com/76020485/108672134-e53a2e80-7524-11eb-8008-ebcfbd8e9cbe.PNG)
- - payment  
-![image](https://user-images.githubusercontent.com/76020485/108672136-e5d2c500-7524-11eb-824e-4066bb87376b.PNG)
- - drink  
-![image](https://user-images.githubusercontent.com/76020485/108672138-e66b5b80-7524-11eb-9c27-cf2089f4ac08.PNG)
- - customercenter  
-![image](https://user-images.githubusercontent.com/76020485/108672131-e4a19800-7524-11eb-894e-832ed6519b53.PNG)
 
 ## 폴리글랏 퍼시스턴스
 
 SalePage는 H2 DB를 사용하였고, 고객센터(customercenter)는 Mongo DB 를 사용하였다. 
+
+앱프런트 (app) 는 서비스 특성상 많은 사용자의 유입과 상품 정보의 다양한 콘텐츠를 저장해야 하는 특징으로 인해 RDB 보다는 Document DB / NoSQL 계열의 데이터베이스인 Mongo DB 를 사용하기로 하였다. 이를 위해 order 의 선언에는 @Entity 가 아닌 @Document 로 마킹되었으며, 별다른 작업없이 기존의 Entity Pattern 과 Repository Pattern 적용과 데이터베이스 제품의 설정 (application.yml) 만으로 MongoDB 에 부착시켰다
 
 ```
 package cafeteria;
@@ -435,41 +429,6 @@ public class SalePageViewHandler {
 }
 
 ```
-## 폴리글랏 프로그래밍
-
-고객관리 서비스(customercenter)의 시나리오인 주문상태 변경에 따라 고객에게 카톡메시지 보내는 기능의 구현 파트는 해당 팀이 scala를 이용하여 구현하기로 하였다. 해당 Scala 구현체는 각 이벤트를 수신하여 처리하는 Kafka consumer 로 구현되었고 코드는 다음과 같다:
-```
-import org.springframework.messaging.SubscribableChannel
-import org.springframework.cloud.stream.annotation.Output
-import org.springframework.cloud.stream.annotation.Input
-import org.springframework.messaging.MessageChannel
-
-object KafkaProcessor {
-  final val INPUT = "event-in"
-  final val OUTPUT = "event-out"
-}
-
-trait KafkaProcessor {
-
-  @Input(KafkaProcessor.INPUT)
-  def inboundTopic() :SubscribableChannel
-
-  @Output(KafkaProcessor.OUTPUT)
-  def outboundTopic() :MessageChannel
-}
-
- # 카톡호출 API
-import org.springframework.stereotype.Component
-
-@Component
-class KakaoServiceImpl extends KakaoService {
-  
-	override def sendKakao(message :KakaoMessage) {
-		logger.info(s"\nTo. ${message.phoneNumber}\n${message.message}\n")
-	}
-}
-
-```
 
 ## 동기식 호출 과 Fallback 처리
 
@@ -572,7 +531,6 @@ Transfer-Encoding: chunked
 }
 ```
 - 또한 과도한 요청시에 서비스 장애가 도미노 처럼 벌어질 수 있다. (서킷브레이커, 폴백 처리는 운영단계에서 설명한다.)
-
 
 
 ## 비동기식 호출 / 시간적 디커플링 / 장애격리 / 최종 (Eventual) 일관성 테스트
@@ -1085,14 +1043,8 @@ customercenter-7f57cf5f9f-csp2b   1/1     Running   1          20h
 
 ## CI/CD 설정
 
-
 각 구현체들은 하나의 source repository 에 구성되었고, 사용한 CI/CD 플랫폼은 AWS를 사용하였으며, pipeline build script는 각 프로젝트 폴더 아래에 buildspec.yml 에 포함되었다.
-
-![image](https://user-images.githubusercontent.com/75828964/108723281-6adece00-7567-11eb-9616-82cff205f321.png)
-![image](https://user-images.githubusercontent.com/75828964/108723298-703c1880-7567-11eb-8912-c2c24c269b57.png)
-![image](https://user-images.githubusercontent.com/75828964/108723307-73370900-7567-11eb-8fda-cb13622e2b1e.png)
-![image](https://user-images.githubusercontent.com/75828964/108723317-76ca9000-7567-11eb-9dc2-0fe0765e8e3f.png)
-![image](https://user-images.githubusercontent.com/75828964/108723330-792cea00-7567-11eb-9065-09e6d73281fb.png)
+--> 수동배포 한 결과 캡쳐
 
 ## 동기식 호출 / 서킷 브레이킹 / 장애격리
 
@@ -1612,7 +1564,6 @@ metadata:
   namespace: cafeteria
 data:
   database: "cafeteria"
-  
 
 # application.yml
 
