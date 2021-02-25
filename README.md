@@ -10,18 +10,13 @@
     - [폴리글랏 퍼시스턴스](#폴리글랏-퍼시스턴스)
     - [동기식 호출 과 Fallback 처리](#동기식-호출-과-Fallback-처리)
     - [비동기식 호출 과 Eventual Consistency](#비동기식-호출--시간적-디커플링--장애격리--최종-eventual-일관성-테스트)
-    - [Saga Pattern / 보상 트랜잭션](#Saga-Pattern--보상-트랜잭션)
     - [CQRS / Meterialized View](#CQRS--Meterialized-View)
   - [운영](#운영)
     - [Liveness / Readiness 설정](#Liveness--Readiness-설정)
     - [CI/CD 설정](#cicd-설정)
     - [Self Healing](#Self-Healing)
     - [동기식 호출 / 서킷 브레이킹 / 장애격리](#동기식-호출--서킷-브레이킹--장애격리)
-    - [오토스케일 아웃](#오토스케일-아웃)
-    - [무정지 재배포](#무정지-재배포)
-    - [모니터링](#모니터링)
     - [Persistence Volum Claim](#Persistence-Volum-Claim)
-    - [ConfigMap / Secret](#ConfigMap--Secret)
 
 # 서비스 시나리오
 
@@ -716,42 +711,7 @@ Transfer-Encoding: chunked
 
 # 운영
 
-## Liveness / Readiness 설정
-Pod 생성 시 준비되지 않은 상태에서 요청을 받아 오류가 발생하지 않도록 Readiness Probe와 Liveness Probe를 설정했다.
-```
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: sale
-  labels:
-    app: sale
-spec:
- :
-      containers:
-        - name: sale
-          image: 496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/skccuser01-sale:v4
-          ports:
-            - containerPort: 8080
-          readinessProbe:
-            httpGet:
-              path: '/actuator/health'
-              port: 8080
-            initialDelaySeconds: 10
-            timeoutSeconds: 2
-            periodSeconds: 5
-            failureThreshold: 10
-          livenessProbe:
-            httpGet:
-              path: '/actuator/health'
-              port: 8080
-            initialDelaySeconds: 120
-            timeoutSeconds: 2
-            periodSeconds: 5
-            failureThreshold: 5
-
-```
-
-## Self Healing
+## Self Healing(livenessProbe)
 livenessProbe를 설정하여 문제가 있을 경우 스스로 재기동 되도록 한다.
 ```	  
 # liveness Probe호출 주소를 변경
@@ -815,8 +775,7 @@ sale-789f85978f-sjnh4             1/1     Running   2          13s
 mvn clean install
 docker build -t 496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/skccuser01-sale:v4 .
 docker push 496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/skccuser01-sale:v4
-kubectl set image deploy/sale sale=496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/skccuser01-sale:v4
-
+kubectl apply -f kubernetes/deployment.yml
 
 
 ## Persistence Volum Claim
