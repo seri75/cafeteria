@@ -423,8 +423,7 @@ public interface SaleService {
     }
 ```
 
-- 동기식 호출에서는 호출 시간에 따른 타임 커플링이 발생하며, 결제 시스템이 장애가 나면 주문도 못받는다는 것을 확인:
-
+- 동기식 호출에서는 호출 시간에 따른 타임 커플링이 발생하며, 판매 시스템이 장애가 나면 주문도 못받는다는 것을 확인:
 
 ```
 # 판매 (sale) 서비스를 잠시 내려놓음
@@ -479,12 +478,11 @@ Transfer-Encoding: chunked
 }
 ```
 
-
 ## 비동기식 호출 / 시간적 디커플링 / 장애격리 / 최종 (Eventual) 일관성 테스트
 
-결제가 이루어진 후에 상점시스템으로 이를 알려주는 행위는 동기식이 아니라 비 동기식으로 처리하여 상점 시스템의 처리를 위하여 결제주문이 블로킹 되지 않아도록 처리한다.
+결제취소가 이루어진 후에 판매시스템으로 이를 알려주는 행위는 동기식이 아니라 비 동기식으로 처리하여 판매 시스템의 처리를 위하여 결제취소처리가 블로킹 되지 않아도록 처리한다.
  
-- 이를 위하여 결제이력에 기록을 남긴 후에 곧바로 결제승인이 되었다는 도메인 이벤트를 카프카로 송출한다(Publish)
+- 이를 위하여 취소이력에 기록을 남긴 후에 곧바로 결제취소가 되었다는 도메인 이벤트를 카프카로 송출한다(Publish)
  
 ```
 package cafeteria;
@@ -505,7 +503,7 @@ public class Payment {
 
 }
 ```
-- 음료 서비스에서는 Ordered 이벤트에 대해서 이를 수신하여 자신의 정책을 처리하도록 PolicyHandler 를 구현한다:
+- 판매 서비스에서는 PaymentCanceled 이벤트에 대해서 이를 수신하여 자신의 정책을 처리하도록 PolicyHandler 를 구현한다:
 
 ```
 package cafeteria;
@@ -536,14 +534,9 @@ package cafeteria;
 
 ```
 
+- 결제 취소처리 후  비 동기식으로 처리하여 판매금액 감소를 확인할수 있다
 
-음료 시스템은 주문/결제와 완전히 분리되어있으며, 이벤트 수신에 따라 처리되기 때문에, 음료시스템이 유지보수로 인해 잠시 내려간 상태라도 주문을 받는데 문제가 없다:
-```
-# 음료 서비스 (drink) 를 잠시 내려놓음
-$ kubectl delete deploy drink
-deployment.apps "drink" deleted
-
-#판매량 
+#판매금액 
 root@siege-5b99b44c9c-f2ftw:/# http http://sale:8080/sales
 HTTP/1.1 200 
 Content-Type: application/hal+json;charset=UTF-8
@@ -612,11 +605,8 @@ Transfer-Encoding: chunked
     "status": "OrderCanceled"
 }
 
-#음료 서비스 기동
-kubectl apply -f deployment.yml
-deployment.apps/drink created
 
-#음료등록 확인
+#판매금액 확인
 
 root@siege-5b99b44c9c-f2ftw:/# http http://sale:8080/sales
 HTTP/1.1 200 
