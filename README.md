@@ -8,7 +8,6 @@
     - [DDD 의 적용](#ddd-의-적용)
     - [API Gateway](#API-GATEWAY)
     - [폴리글랏 퍼시스턴스](#폴리글랏-퍼시스턴스)
-    - [폴리글랏 프로그래밍](#폴리글랏-프로그래밍)
     - [동기식 호출 과 Fallback 처리](#동기식-호출-과-Fallback-처리)
     - [비동기식 호출 과 Eventual Consistency](#비동기식-호출--시간적-디커플링--장애격리--최종-eventual-일관성-테스트)
     - [Saga Pattern / 보상 트랜잭션](#Saga-Pattern--보상-트랜잭션)
@@ -315,118 +314,17 @@ sale             ClusterIP      ????             <none>                         
 
 ## 폴리글랏 퍼시스턴스
 
-SalePage는 H2 DB를 사용하였고, 고객센터(customercenter)는 Mongo DB 를 사용하였다. 
+판매량 조회는 다른 서비스의 정보도 같이 조회 서비스를 제공하는 특성을 가지고 있고, in memory DB를 사용하기 위해 HSQL을 적용하였다.
+HSQL 적용을 위해 데이터베이스 제품 설정을 pom.xml에 반영하였다.
 
-앱프런트 (app) 는 서비스 특성상 많은 사용자의 유입과 상품 정보의 다양한 콘텐츠를 저장해야 하는 특징으로 인해 RDB 보다는 Document DB / NoSQL 계열의 데이터베이스인 Mongo DB 를 사용하기로 하였다. 이를 위해 order 의 선언에는 @Entity 가 아닌 @Document 로 마킹되었으며, 별다른 작업없이 기존의 Entity Pattern 과 Repository Pattern 적용과 데이터베이스 제품의 설정 (application.yml) 만으로 MongoDB 에 부착시켰다
-
-```
-package cafeteria;
-
-import java.text.SimpleDateFormat;
-import java.util.List;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cloud.stream.annotation.StreamListener;
-import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.stereotype.Service;
-
-import cafeteria.config.kafka.KafkaProcessor;
-
-@Service
-public class SalePageViewHandler {
-
-    @Autowired
-    private SalePageRepository salePageRepository;
-    
-    @Autowired
-    private SaleRepository saleRepository;
-
-    @StreamListener(KafkaProcessor.INPUT)
-    public void whenPaymentApproved_then_CREATE_1 (@Payload PaymentApproved paymentApproved) {
-        try {
-            if (paymentApproved.isMe()) {
-                // view 객체 생성
-                SalePage page  = new SalePage();
-                // view 객체에 이벤트의 Value 를 set 함
-                page.setOrderId(paymentApproved.getOrderId());
-                page.setPhoneNumber(paymentApproved.getPhoneNumber());
-                page.setAmt(paymentApproved.getAmt());
-                
-                SimpleDateFormat yyyyMMFormat = new SimpleDateFormat("yyyyMM");
-
-                String yyyymm = yyyyMMFormat.format(paymentApproved.getCreateTime());
-                
-                page.setYyyymm(yyyymm);
-
-                List<Sale> sales = saleRepository.findByPhoneNumberAndYyyymm(paymentApproved.getPhoneNumber(), yyyymm);
-                Sale sale = sales.get(0);
-                
-                page.setSumAmt(sale.getSumAmt());
-                
-                // view 레파지 토리에 save
-                salePageRepository.save(page);
-            }
-        }catch (Exception e){
-            e.printStackTrace();
-        }
-    }
-
-
-    @StreamListener(KafkaProcessor.INPUT)
-    public void whenOrdered_then_UPDATE_1(@Payload Ordered ordered) {
-        try {
-            if (ordered.isMe()) {
-                // view 객체 조회
-                List<SalePage> pages = salePageRepository.findByOrderId(ordered.getId());
-                for(SalePage page : pages){
-                    // view 객체에 이벤트의 eventDirectValue 를 set 함
-                	page.setProductName(ordered.getProductName());
-                    // view 레파지 토리에 save
-                	salePageRepository.save(page);
-                }
-            }
-        }catch (Exception e){
-            e.printStackTrace();
-        }
-    }
-    
-    @StreamListener(KafkaProcessor.INPUT)
-    public void whenPaymentCanceled_then_UPDATE_2(@Payload PaymentCanceled paymentCanceled) {
-        try {
-            if (paymentCanceled.isMe()) {
-            	
-            	String yyyymm = paymentCanceled.getTimestamp().substring(0, 6);
-            	List<Sale> sales = saleRepository.findByPhoneNumberAndYyyymm(paymentCanceled.getPhoneNumber(), yyyymm);
-                
-            	if(sales.size() !=  1) throw new RuntimeException("There is not exacted[" + yyyymm + " / " + paymentCanceled.getPhoneNumber() + "]");
-            	Sale sale = sales.get(0);
-            	sale.setSumAmt(sale.getSumAmt() - paymentCanceled.getAmt());
-            	
-            	saleRepository.save(sale);
-                
-                // view 객체 조회
-            	List<SalePage> pages = salePageRepository.findByOrderId(paymentCanceled.getOrderId());
-            	
-            	SalePage beforePage = pages.get(0);
-            	
-            	SalePage page = new SalePage();
-            	page.setOrderId(paymentCanceled.getOrderId());
-            	page.setPhoneNumber(paymentCanceled.getPhoneNumber());
-            	page.setProductName(beforePage.getProductName());
-            	
-                page.setYyyymm(paymentCanceled.getTimestamp().substring(0, 6));
-
-                page.setSumAmt(sale.getSumAmt());
-                
-                salePageRepository.save(page);
-            	
-            }
-        }catch (Exception e){
-            e.printStackTrace();
-        }
-    }
-
-}
+# pom.yml
+		<!-- HSQL -->
+ 		<dependency>
+    		<groupId>org.hsqldb</groupId>
+   			<artifactId>hsqldb</artifactId>
+    		<version>2.4.0</version>
+   			<scope>runtime</scope>
+		</dependency>
 
 ```
 
