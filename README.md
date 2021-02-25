@@ -531,6 +531,7 @@ package cafeteria;
 
 - 결제 취소처리 후  비 동기식으로 처리하여 판매금액 감소를 확인할수 있다
 
+```
 #판매금액 
 root@siege-5b99b44c9c-f2ftw:/# http http://sale:8080/sales
 HTTP/1.1 200 
