@@ -57,27 +57,7 @@
 1. 헥사고날 아키텍처 다이어그램 도출
 ![image](https://user-images.githubusercontent.com/74699168/108950156-1b082000-76a9-11eb-8e37-1cfdaed767b1.png)
 
-# 구현:
 
-분석/설계 단계에서 도출된 헥사고날 아키텍처에 따라, 각 BC별로 대변되는 마이크로 서비스들을 스프링부트로 구현하였다. 구현한 각 서비스를 로컬에서 실행하는 방법은 아래와 같다 (각자의 포트넘버는 8081 ~ 808n
-이다)
-
-```
-cd order
-mvn spring-boot:run
-
-cd payment
-mvn spring-boot:run 
-
-cd sale
-mvn spring-boot:run 
-
-cd drink
-mvn spring-boot:run  
-
-cd customercneter
-mvn spring-boot:run
-```
 
 ## DDD 의 적용
 
@@ -155,50 +135,52 @@ public interface SaleRepository extends PagingAndSortingRepository<Sale, Long>{
 - 적용 후 REST API 의 테스트
 ```
 # order 서비스의 주문처리
-root@siege-5b99b44c9c-8qtpd:/# http http://order:8080/orders phoneNumber="01012345678" productName="coffee" qty=3 amt=5000
+root@siege-5b99b44c9c-f2ftw:/# http http://order:8080/orders phoneNumber="01012345678" productName="coffee" qty=2 amt=7000
 HTTP/1.1 201 
 Content-Type: application/json;charset=UTF-8
-Date: Sat, 20 Feb 2021 14:20:20 GMT
-Location: http://order:8080/orders/1
+Date: Thu, 25 Feb 2021 04:28:24 GMT
+Location: http://order:8080/orders/11
 Transfer-Encoding: chunked
+
 {
     "_links": {
         "order": {
-            "href": "http://order:8080/orders/1"
+            "href": "http://order:8080/orders/11"
         },
         "self": {
-            "href": "http://order:8080/orders/1"
+            "href": "http://order:8080/orders/11"
         }
     },
-    "amt": 5000,
-    "createTime": "2021-02-20T14:20:17.783+0000",
+    "amt": 7000,
+    "createTime": "2021-02-25T04:28:24.716+0000",
     "phoneNumber": "01012345678",
     "productName": "coffee",
-    "qty": 3,
+    "qty": 2,
     "status": "Ordered"
 }
 
 # payment 등록
-root@siege-5b99b44c9c-8qtpd:/# http http://payment:8080/payments/search/findByOrderId?orderId=1 
+root@siege-5b99b44c9c-f2ftw:/# http http://payment:8080/payments/search/findByOrderId?orderId=11
 HTTP/1.1 200 
 Content-Type: application/hal+json;charset=UTF-8
-Date: Sat, 20 Feb 2021 14:21:21 GMT
+Date: Thu, 25 Feb 2021 04:46:28 GMT
 Transfer-Encoding: chunked
+
 {
     "_embedded": {
         "payments": [
             {
                 "_links": {
                     "payment": {
-                        "href": "http://payment:8080/payments/1"
+                        "href": "http://payment:8080/payments/6"
                     },
                     "self": {
-                        "href": "http://payment:8080/payments/1"
+                        "href": "http://payment:8080/payments/6"
                     }
                 },
-                "amt": 5000,
-                "createTime": "2021-02-20T14:20:19.020+0000",
-                "orderId": 1,
+                "amt": 7000,
+                "createTime": "2021-02-25T04:28:24.722+0000",
+                "orderId": 11,
                 "phoneNumber": "01012345678",
                 "status": "PaymentApproved"
             }
@@ -206,51 +188,128 @@ Transfer-Encoding: chunked
     },
     "_links": {
         "self": {
-            "href": "http://payment:8080/payments/search/findByOrderId?orderId=1"
+            "href": "http://payment:8080/payments/search/findByOrderId?orderId=11"
         }
     }
 }
 
 # sale 서비스의 등록처리
-root@siege-5b99b44c9c-8qtpd:/# http patch http://drink:8080/drinks/1 status="Receipted"
+root@siege-5b99b44c9c-f2ftw:/# http http://sale:8080/sales
 HTTP/1.1 200 
-Content-Type: application/json;charset=UTF-8
-Date: Sat, 20 Feb 2021 14:32:03 GMT
+Content-Type: application/hal+json;charset=UTF-8
+Date: Thu, 25 Feb 2021 04:47:31 GMT
 Transfer-Encoding: chunked
+
 {
+    "_embedded": {
+        "sales": [
+            {
+                "_links": {
+                    "sale": {
+                        "href": "http://sale:8080/sales/1"
+                    },
+                    "self": {
+                        "href": "http://sale:8080/sales/1"
+                    }
+                },
+                "phoneNumber": "01012345678",
+                "sumAmt": 21000,
+                "yyyymm": "202102"
+            }
+        ]
+    },
     "_links": {
-        "drink": {
-            "href": "http://drink:8080/drinks/1"
+        "profile": {
+            "href": "http://sale:8080/profile/sales"
+        },
+        "search": {
+            "href": "http://sale:8080/sales/search"
         },
         "self": {
-            "href": "http://drink:8080/drinks/1"
+            "href": "http://sale:8080/sales{?page,size,sort}",
+            "templated": true
         }
     },
-    "createTime": "2021-02-20T14:29:13.533+0000",
-    "orderId": 1,
-    "phoneNumber": "01012345678",
-    "productName": "coffee",
-    "qty": 3,
-    "status": "Receipted"
+    "page": {
+        "number": 0,
+        "size": 20,
+        "totalElements": 1,
+        "totalPages": 1
+    }
 }
 
 # salepage 서비스의 조회
-root@siege-5b99b44c9c-8qtpd:/# http http://customercenter:8080/mypages/search/findByPhoneNumber?phoneNumber="01012345678"
+root@siege-5b99b44c9c-f2ftw:/# http http://sale:8080/salePages
 HTTP/1.1 200 
-Content-Type: application/json;charset=UTF-8
-Date: Sat, 20 Feb 2021 14:36:15 GMT
+Content-Type: application/hal+json;charset=UTF-8
+Date: Thu, 25 Feb 2021 04:48:41 GMT
 Transfer-Encoding: chunked
-[
-    {
-        "amt": 5000,
-        "id": 1,
-        "orderId": 1,
-        "phoneNumber": "01012345678",
-        "productName": "coffee",
-        "qty": 3,
-        "status": "Ordered"
+
+{
+    "_embedded": {
+        "salePages": [
+            {
+                "_links": {
+                    "salePage": {
+                        "href": "http://sale:8080/salePages/2"
+                    },
+                    "self": {
+                        "href": "http://sale:8080/salePages/2"
+                    }
+                },
+                "amt": 7000,
+                "orderId": 9,
+                "phoneNumber": "01012345678",
+                "productName": "coffee",
+                "sumAmt": 7000,
+                "yyyymm": "202102"
+            },
+            {
+                "_links": {
+                    "salePage": {
+                        "href": "http://sale:8080/salePages/3"
+                    },
+                    "self": {
+                        "href": "http://sale:8080/salePages/3"
+                    }
+                },
+                "amt": 7000,
+                "orderId": 10,
+                "phoneNumber": "01012345678",
+                "productName": "coffee",
+                "sumAmt": 14000,
+                "yyyymm": "202102"
+            },
+            {
+                "_links": {
+                    "salePage": {
+                        "href": "http://sale:8080/salePages/4"
+                    },
+                    "self": {
+                        "href": "http://sale:8080/salePages/4"
+                    }
+                },
+                "amt": 7000,
+                "orderId": 11,
+                "phoneNumber": "01012345678",
+                "productName": "coffee",
+                "sumAmt": 21000,
+                "yyyymm": "202102"
+            }
+        ]
+    },
+    "_links": {
+        "profile": {
+            "href": "http://sale:8080/profile/salePages"
+        },
+        "search": {
+            "href": "http://sale:8080/salePages/search"
+        },
+        "self": {
+            "href": "http://sale:8080/salePages"
+        }
     }
-]
+}
 ```
 
 ## API Gateway
@@ -273,10 +332,6 @@ spring:
           uri: http://payment:8080
           predicates:
             - Path=/payments/** 
-        - id: sale
-          uri: http://sale:8080
-          predicates:
-            - Path=/sales/** 
         - id: drink
           uri: http://drink:8080
           predicates:
@@ -285,6 +340,11 @@ spring:
           uri: http://customercenter:8080
           predicates:
             - Path= /mypages/**
+        - id: sale
+          uri: http://sale:8080
+          predicates:
+            - Path= /sales/**,/salePages/**
+
 
 # service.yaml
 apiVersion: v1
@@ -301,14 +361,14 @@ spec:
   selector:
     app: gateway
     
-$ kubectl get svc
-NAME             TYPE           CLUSTER-IP       EXTERNAL-IP                                                                  PORT(S)          AGE
-customercenter   ClusterIP      10.100.52.95     <none>                                                                       8080/TCP         9h
-drink            ClusterIP      10.100.136.6     <none>                                                                       8080/TCP         9h
-gateway          LoadBalancer   10.100.164.152   a6826d83b5c8e4f5dad7129c7cdf0ded-93964597.ap-northeast-2.elb.amazonaws.com   8080:30109/TCP   9h
-order            ClusterIP      10.100.197.15    <none>                                                                       8080/TCP         9h
-payment          ClusterIP      10.100.242.153   <none>                                                                       8080/TCP         9h
-sale             ClusterIP      ????             <none>                                                                       8080/TCP         9h
+# kubectl get svc 
+NAME             TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE
+customercenter   ClusterIP      10.100.193.90   <none>        8080/TCP         4h46m
+drink            ClusterIP      10.100.42.138   <none>        8080/TCP         4h47m
+gateway          LoadBalancer   10.100.182.2    <pending>     8080:30223/TCP   5h3m
+order            ClusterIP      10.100.206.47   <none>        8080/TCP         5h4m
+payment          ClusterIP      10.100.30.75    <none>        8080/TCP         5h3m
+sale             ClusterIP      10.100.192.26   <none>        8080/TCP         4h46m 
 
 ```
 
@@ -316,13 +376,12 @@ sale             ClusterIP      ????             <none>                         
 
 판매량 조회는 다른 서비스의 정보도 같이 조회 서비스를 제공하는 특성을 가지고 있고, in memory DB를 사용하기 위해 HSQL을 적용하였다.
 HSQL 적용을 위해 데이터베이스 제품 설정을 pom.xml에 반영하였다.
-
+```
 # pom.yml
 		<!-- HSQL -->
  		<dependency>
     		<groupId>org.hsqldb</groupId>
    			<artifactId>hsqldb</artifactId>
-    		<version>2.4.0</version>
    			<scope>runtime</scope>
 		</dependency>
 
@@ -335,42 +394,32 @@ HSQL 적용을 위해 데이터베이스 제품 설정을 pom.xml에 반영하�
 - 판매 서비스를 호출하기 위하여 Stub과 (FeignClient) 를 이용하여 Service 대행 인터페이스 (Proxy) 를 구현 
 
 ```
-payment 서비스 수정후 반영 필요
 
-# (payment) PaymentService.java
+# (payment) SaleService.java
 
 package cafeteria.external;
 
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 
-@FeignClient(name="payment", url="${feign.client.payment.url}")
-public interface PaymentService {
+@FeignClient(name="sale", url="${feign.client.sale.url}")
+public interface SaleService {
 
-    @RequestMapping(method= RequestMethod.POST, path="/payments")
-    public void pay(@RequestBody Payment payment);
-
+        @PutMapping("/sumtAmt")
+         public void sumAmt(@RequestBody Sale sale);
 }
 ```
 
 - 주문을 받은 직후(@PostPersist) 결제를 요청하도록 처리
 ```
-# Order.java (Entity)
+# Payment.java (Entity)
 
     @PostPersist
     public void onPostPersist(){
         :
-
-        Payment payment = new Payment();
-        payment.setOrderId(this.id);
-        payment.setPhoneNumber(this.phoneNumber);
-        payment.setAmt(this.amt);
         
-        OrderApplication.applicationContext.getBean(PaymentService.class).pay(payment);
-
-
+        PaymentApplication.applicationContext.getBean(SaleService.class).sumAmt(sale);
     }
 ```
 
@@ -378,57 +427,57 @@ public interface PaymentService {
 
 
 ```
-# 결제 (payment) 서비스를 잠시 내려놓음
-$ kubectl delete deploy payment
-deployment.apps "payment" deleted
+# 판매 (sale) 서비스를 잠시 내려놓음
+$ kubectl delete deploy sale
+deployment.apps "sale" deleted
 
 #주문처리
-
-root@siege-5b99b44c9c-8qtpd:/# http http://order:8080/orders phoneNumber="01012345679" productName="coffee" qty=3 amt=5000
+root@siege-5b99b44c9c-f2ftw:/# http http://order:8080/orders phoneNumber="01012345678" productName="tea" qty=1 amt=5000
 HTTP/1.1 500 
 Connection: close
 Content-Type: application/json;charset=UTF-8
-Date: Sat, 20 Feb 2021 14:39:23 GMT
+Date: Thu, 25 Feb 2021 05:49:15 GMT
 Transfer-Encoding: chunked
+
 {
     "error": "Internal Server Error",
     "message": "Could not commit JPA transaction; nested exception is javax.persistence.RollbackException: Error while committing the transaction",
     "path": "/orders",
     "status": 500,
-    "timestamp": "2021-02-20T14:39:23.185+0000"
+    "timestamp": "2021-02-25T05:49:15.697+0000"
 }
 
-#결제서비스 재기동
+
+#판매서비스 재기동
 $ kubectl apply -f deployment.yml
-deployment.apps/payment created
+deployment.apps/sale created
 
 #주문처리
 
-root@siege-5b99b44c9c-8qtpd:/# http http://order:8080/orders phoneNumber="01012345679" productName="coffee" qty=3 amt=5000
+root@siege-5b99b44c9c-f2ftw:/# http http://order:8080/orders phoneNumber="01012345678" productName="tea" qty=1 amt=5000
 HTTP/1.1 201 
 Content-Type: application/json;charset=UTF-8
-Date: Sat, 20 Feb 2021 14:51:42 GMT
-Location: http://order:8080/orders/6
+Date: Thu, 25 Feb 2021 05:51:58 GMT
+Location: http://order:8080/orders/14
 Transfer-Encoding: chunked
 
 {
     "_links": {
         "order": {
-            "href": "http://order:8080/orders/6"
+            "href": "http://order:8080/orders/14"
         },
         "self": {
-            "href": "http://order:8080/orders/6"
+            "href": "http://order:8080/orders/14"
         }
     },
     "amt": 5000,
-    "createTime": "2021-02-20T14:51:40.580+0000",
-    "phoneNumber": "01012345679",
-    "productName": "coffee",
-    "qty": 3,
+    "createTime": "2021-02-25T05:51:57.166+0000",
+    "phoneNumber": "01012345678",
+    "productName": "tea",
+    "qty": 1,
     "status": "Ordered"
 }
 ```
-- 또한 과도한 요청시에 서비스 장애가 도미노 처럼 벌어질 수 있다. (서킷브레이커, 폴백 처리는 운영단계에서 설명한다.)
 
 
 ## 비동기식 호출 / 시간적 디커플링 / 장애격리 / 최종 (Eventual) 일관성 테스트
@@ -445,11 +494,12 @@ package cafeteria;
 public class Payment {
 
  :
-    @PostPersist
-    public void onPostPersist(){
-        PaymentApproved paymentApproved = new PaymentApproved();
-        BeanUtils.copyProperties(this, paymentApproved);
-        paymentApproved.publishAfterCommit();
+    @PostUpdate
+    public void onPostUpdate(){
+        PaymentCanceled paymentCanceled = new PaymentCanceled();
+        BeanUtils.copyProperties(this, paymentCanceled);
+        paymentCanceled.publishAfterCommit();
+
 
     }
 
@@ -462,62 +512,30 @@ package cafeteria;
 
 :
 
-    @StreamListener(KafkaProcessor.INPUT)
-    public void wheneverOrdered_(@Payload Ordered ordered){
-
-        if(ordered.isMe()){
-            log.info("##### listener  : " + ordered.toJson());
+@StreamListener(KafkaProcessor.INPUT)
+    public void whenPaymentCanceled_then_UPDATE_2(@Payload PaymentCanceled paymentCanceled) {
+        try {
+            if (paymentCanceled.isMe()) {
             
-            List<Drink> drinks = drinkRepository.findByOrderId(ordered.getId());
-            for(Drink drink : drinks) {
-           	drink.setPhoneNumber(ordered.getPhoneNumber());
-            	drink.setProductName(ordered.getProductName());
-               	drink.setQty(ordered.getQty());
-               	drinkRepository.save(drink);
+                String yyyymm = paymentCanceled.getTimestamp().substring(0, 6);
+                List<Sale> sales = saleRepository.findByPhoneNumberAndYyyymm(paymentCanceled.getPhoneNumber(), yyyymm);
+                
+                if(sales.size() !=  1) throw new RuntimeException("There is not exacted[" + yyyymm + " / " + paymentCanceled.getPhoneNumber() + "]");
+                Sale sale = sales.get(0);
+                sale.setSumAmt(sale.getSumAmt() - paymentCanceled.getAmt());
+            
+                saleRepository.save(sale);
+                
+               :
+            
             }
+        }catch (Exception e){
+            e.printStackTrace();
         }
     }
 
 ```
-Replica를 추가했을 때 중복없이 수신할 수 있도록 서비스별 Kafka Group을 동일하게 지정했다.
-```
-spring:
-  cloud:
-    stream:
-      bindings:
-        event-in:
-          group: drink
-          destination: cafeteria
-          contentType: application/json
-        :
-```
-실제 구현에서 카톡은 화면에 출력으로 대체하였다.
-  
-```    
-  @StreamListener(KafkaProcessor.INPUT)
-  def whenReceipted_then_UPDATE_3(@Payload made :Made) {
-    try {
-      if (made.isMe()) {
-        
-        val message :KakaoMessage = new KakaoMessage()
-        message.phoneNumber = made.phoneNumber
-        message.message = s"""Your Order is ${made.status}\nCome and Take it, Please!"""
-        kakaoService.sendKakao(message)
-      }
-    } catch {
-      case e :Exception => e.printStackTrace()
-    }
-  }
 
-@Component
-class KakaoServiceImpl extends KakaoService {
-  
-	override def sendKakao(message :KakaoMessage) {
-		logger.info(s"\nTo. ${message.phoneNumber}\n${message.message}\n")
-	}
-}
-
-```
 
 음료 시스템은 주문/결제와 완전히 분리되어있으며, 이벤트 수신에 따라 처리되기 때문에, 음료시스템이 유지보수로 인해 잠시 내려간 상태라도 주문을 받는데 문제가 없다:
 ```
