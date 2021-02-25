@@ -50,8 +50,7 @@
 1. Event Storming 모델
 ![image](https://user-images.githubusercontent.com/74699168/108949998-ca90c280-76a8-11eb-9f84-f3e5a8dad55a.png)
 1. 헥사고날 아키텍처 다이어그램 도출
-![image](https://user-images.githubusercontent.com/74699168/108950156-1b082000-76a9-11eb-8e37-1cfdaed767b1.png)
-
+![image](https://user-images.githubusercontent.com/74699168/109121998-524efd80-778b-11eb-8ba3-cad50b978d55.png)
 
 
 ## DDD 의 적용
