@@ -774,8 +774,11 @@ sale-789f85978f-sjnh4             1/1     Running   2          13s
 각 구현체들은 하나의 source repository 에 구성되었고, kubectl명령을 통하여 수동으로 배포 하였다.
 
 mvn clean install
+
 docker build -t 496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/skccuser01-sale:v4 .
+
 docker push 496278789073.dkr.ecr.ap-northeast-2.amazonaws.com/skccuser01-sale:v4
+
 kubectl apply -f kubernetes/deployment.yml
 
 
