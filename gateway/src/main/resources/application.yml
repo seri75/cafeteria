@@ -62,6 +62,10 @@ spring:
           uri: http://customercenter:8080
           predicates:
             - Path= /mypages/**
+        - id: sale
+          uri: http://sale:8080
+          predicates:
+            - Path= /sales/**,/salePages/**
       globalcors:
         corsConfigurations:
           '[/**]':
