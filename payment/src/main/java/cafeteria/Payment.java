@@ -1,9 +1,20 @@
 package cafeteria;
 
-import javax.persistence.*;
-import org.springframework.beans.BeanUtils;
-import java.util.List;
+import java.text.SimpleDateFormat;
 import java.util.Date;
+
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.PostPersist;
+import javax.persistence.PostUpdate;
+import javax.persistence.Table;
+
+import org.springframework.beans.BeanUtils;
+
+import cafeteria.external.Sale;
+import cafeteria.external.SaleService;
 
 @Entity
 @Table(name="Payment")
@@ -35,7 +46,17 @@ public class Payment {
         PaymentApproved paymentApproved = new PaymentApproved();
         BeanUtils.copyProperties(this, paymentApproved);
         paymentApproved.publishAfterCommit();
-
+        
+        Sale sale = new Sale();
+        sale.setPhoneNumber(this.phoneNumber);
+        
+        SimpleDateFormat yyyyMMFormat = new SimpleDateFormat("yyyyMM");
+        String yyyymm = yyyyMMFormat.format(this.createTime);
+        
+        sale.setYyyymm(yyyymm);
+        sale.setSumAmt(amt);
+        
+        PaymentApplication.applicationContext.getBean(SaleService.class).sumAmt(sale);
     }
 
     @PostUpdate
